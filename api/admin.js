@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { requireCosAdmin } from './shared/adminAuth.js';
-import { applyBillingGrant, listBillingGrants } from './shared/billingGrants.js';
+import { applyBillingGrant, listBillingGrantsSafe, listRecentBillingGrants } from './shared/billingGrants.js';
 import {
   deletePendingSignup,
   getPendingSignupStats,
@@ -123,8 +123,14 @@ export default async function handler(request, response) {
 
       const tickets = await listAdminTickets(auth.supabaseAdmin, { workshopId });
       const [billingGrants, adminNotes] = await Promise.all([
-        listBillingGrants(auth.supabaseAdmin, workshopId),
-        listWorkshopNotes(auth.supabaseAdmin, workshopId),
+        listBillingGrantsSafe(auth.supabaseAdmin, workshopId),
+        listWorkshopNotes(auth.supabaseAdmin, workshopId).catch((error) => {
+          if (String(error.message || '').includes('workshop_admin_notes')) {
+            return [];
+          }
+
+          throw error;
+        }),
       ]);
 
       return response.status(200).json({ workshop, tickets, billingGrants, adminNotes });
@@ -338,6 +344,21 @@ export default async function handler(request, response) {
     }
   }
 
+  if (action === 'billing-grants') {
+    const auth = await requireCosAdmin(request);
+
+    if (auth.error) {
+      return response.status(auth.status).json({ error: auth.error });
+    }
+
+    try {
+      const result = await listRecentBillingGrants(auth.supabaseAdmin);
+      return response.status(200).json(result);
+    } catch (error) {
+      return response.status(500).json({ error: error.message || 'Could not load billing grants.' });
+    }
+  }
+
   if (action === 'apply-billing-grant') {
     const auth = await requireCosAdmin(request);
 
@@ -401,6 +422,6 @@ export default async function handler(request, response) {
 
   return response.status(400).json({
     error:
-      'Unknown action. Use me, workshops, workshop, tickets, ticket, reply-ticket, internal-note, update-ticket, pending-signups, delete-pending-signup, apply-billing-grant, or add-workshop-note.',
+      'Unknown action. Use me, workshops, workshop, tickets, ticket, reply-ticket, internal-note, update-ticket, pending-signups, delete-pending-signup, billing-grants, apply-billing-grant, or add-workshop-note.',
   });
 }

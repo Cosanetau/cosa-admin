@@ -208,6 +208,7 @@ export default function WorkshopsPage() {
                   <th>Staff</th>
                   <th>Usage</th>
                   <th>Alerts</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -261,6 +262,18 @@ export default function WorkshopsPage() {
                             </span>
                           ))}
                         </div>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td>
+                      {!workshop.billingExempt && workshop.stripeSubscriptionId ? (
+                        <Link
+                          className="admin-table-link"
+                          to={`/free-months?workshopId=${workshop.id}`}
+                        >
+                          Free months
+                        </Link>
                       ) : (
                         '—'
                       )}

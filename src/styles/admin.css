@@ -465,6 +465,76 @@
   border-top: 1px solid #e5e7eb;
 }
 
+.admin-free-months-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+  gap: 16px;
+}
+
+.admin-workshop-picker {
+  display: grid;
+  gap: 8px;
+  max-height: 520px;
+  margin-top: 12px;
+  overflow-y: auto;
+}
+
+.admin-workshop-picker-item {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-workshop-picker-item strong {
+  color: #111827;
+}
+
+.admin-workshop-picker-item span {
+  color: #6b7280;
+  font-size: 0.84rem;
+}
+
+.admin-workshop-picker-item.is-selected {
+  border-color: #c2410c;
+  background: #fff7ed;
+}
+
+.admin-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.admin-section-head h2 {
+  margin: 0;
+}
+
+.admin-setup-note {
+  margin-bottom: 16px;
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.admin-setup-note p {
+  margin: 8px 0 0;
+  color: #9a3412;
+}
+
+@media (max-width: 900px) {
+  .admin-free-months-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-ticket-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.8fr);

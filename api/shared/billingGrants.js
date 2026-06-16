@@ -14,7 +14,7 @@ export function getBillingGrantCouponId(months) {
   return COUPON_BY_MONTHS[Number(months)] || '';
 }
 
-export function mapBillingGrantRow(row) {
+export function mapBillingGrantRow(row, extras = {}) {
   if (!row) {
     return null;
   }
@@ -30,7 +30,25 @@ export function mapBillingGrantRow(row) {
     grantedAt: row.granted_at,
     effectiveUntil: row.effective_until,
     status: row.status || 'active',
+    ...extras,
   };
+}
+
+export function isMissingBillingGrantsTableError(error) {
+  const message = String(error?.message || error || '').toLowerCase();
+  return message.includes('workshop_billing_grants') && message.includes('does not exist');
+}
+
+export async function listBillingGrantsSafe(supabaseAdmin, workshopId) {
+  try {
+    return await listBillingGrants(supabaseAdmin, workshopId);
+  } catch (error) {
+    if (isMissingBillingGrantsTableError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
 }
 
 export async function listBillingGrants(supabaseAdmin, workshopId) {
@@ -126,4 +144,47 @@ export async function applyBillingGrant({
   }
 
   return mapBillingGrantRow(grant);
+}
+
+export async function listRecentBillingGrants(supabaseAdmin, limit = 40) {
+  const { data, error } = await supabaseAdmin
+    .from('workshop_billing_grants')
+    .select('*')
+    .order('granted_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    if (isMissingBillingGrantsTableError(error)) {
+      return { grants: [], tableReady: false };
+    }
+
+    throw new Error(error.message);
+  }
+
+  const grants = (data || []).map((row) => mapBillingGrantRow(row));
+  const workshopIds = [...new Set(grants.map((grant) => grant.workshopId).filter(Boolean))];
+  const workshopNames = {};
+
+  if (workshopIds.length) {
+    const { data: workshops, error: workshopError } = await supabaseAdmin
+      .from('workshops')
+      .select('id, name')
+      .in('id', workshopIds);
+
+    if (workshopError) {
+      throw new Error(workshopError.message);
+    }
+
+    for (const workshop of workshops || []) {
+      workshopNames[workshop.id] = workshop.name || 'Workshop';
+    }
+  }
+
+  return {
+    tableReady: true,
+    grants: grants.map((grant) => ({
+      ...grant,
+      workshopName: workshopNames[grant.workshopId] || 'Workshop',
+    })),
+  };
 }

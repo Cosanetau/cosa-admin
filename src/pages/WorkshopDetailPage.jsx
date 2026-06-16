@@ -1,6 +1,6 @@
-import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Gift } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   addWorkshopNote,
   applyBillingGrant,
@@ -44,6 +44,7 @@ function DetailItem({ label, value }) {
 
 export default function WorkshopDetailPage() {
   const { workshopId } = useParams();
+  const [searchParams] = useSearchParams();
   const [workshop, setWorkshop] = useState(null);
   const [tickets, setTickets] = useState([]);
   const [billingGrants, setBillingGrants] = useState([]);
@@ -81,6 +82,14 @@ export default function WorkshopDetailPage() {
         setIsLoading(false);
       });
   }, [workshopId]);
+
+  useEffect(() => {
+    const ticketId = searchParams.get('ticketId') || '';
+
+    if (ticketId) {
+      setGrantTicketId(ticketId);
+    }
+  }, [searchParams]);
 
   async function handleApplyGrant(event) {
     event.preventDefault();
@@ -138,12 +147,13 @@ export default function WorkshopDetailPage() {
     return <div className="admin-loading">Loading workshop...</div>;
   }
 
-  if (errorMessage) {
-    return <div className="form-error">{errorMessage}</div>;
-  }
-
   if (!workshop) {
-    return <div className="admin-empty">Workshop not found.</div>;
+    return (
+      <>
+        {errorMessage ? <div className="form-error">{errorMessage}</div> : null}
+        <div className="admin-empty">Workshop not found.</div>
+      </>
+    );
   }
 
   const integrationEntries = [
@@ -191,6 +201,105 @@ export default function WorkshopDetailPage() {
           </div>
         </div>
       ) : null}
+
+      <section className="admin-panel" id="billing-grants">
+        <div className="admin-section-head">
+          <div>
+            <h2>Free months</h2>
+            <p className="admin-form-hint">
+              Apply 1–3 free months via Stripe coupon. The workshop sees the comp in COSA Core billing.
+            </p>
+          </div>
+          <Link className="admin-secondary-button" to="/free-months">
+            <Gift size={16} style={{ marginRight: 6, verticalAlign: -2 }} />
+            Open free months
+          </Link>
+        </div>
+
+        {billingGrants.length ? (
+          <div className="admin-table-wrap" style={{ marginBottom: 20 }}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Months</th>
+                  <th>Reason</th>
+                  <th>Granted</th>
+                  <th>Until</th>
+                  <th>Ticket</th>
+                </tr>
+              </thead>
+              <tbody>
+                {billingGrants.map((grant) => (
+                  <tr key={grant.id}>
+                    <td>{grant.months}</td>
+                    <td>{grant.reason}</td>
+                    <td>
+                      {formatDateTime(grant.grantedAt)}
+                      <div style={{ color: '#6b7280', fontSize: '0.84rem', marginTop: 4 }}>
+                        {grant.grantedByEmail || '—'}
+                      </div>
+                    </td>
+                    <td>{formatDateTime(grant.effectiveUntil)}</td>
+                    <td>
+                      {grant.supportTicketId ? (
+                        <Link className="admin-table-link" to={`/tickets/${grant.supportTicketId}`}>
+                          View ticket
+                        </Link>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="admin-empty" style={{ padding: '12px 0' }}>
+            No billing grants recorded yet.
+          </p>
+        )}
+
+        {!workshop.billingExempt && workshop.stripeSubscriptionId ? (
+          <form className="admin-form-block" onSubmit={handleApplyGrant}>
+            <label>
+              Free months
+              <select value={grantMonths} onChange={(event) => setGrantMonths(event.target.value)}>
+                <option value="1">1 month</option>
+                <option value="2">2 months</option>
+                <option value="3">3 months</option>
+              </select>
+            </label>
+            <label>
+              Reason
+              <textarea
+                placeholder="Goodwill comp, onboarding issue, etc."
+                rows={3}
+                value={grantReason}
+                onChange={(event) => setGrantReason(event.target.value)}
+              />
+            </label>
+            <label>
+              Linked ticket (optional)
+              <select value={grantTicketId} onChange={(event) => setGrantTicketId(event.target.value)}>
+                <option value="">No linked ticket</option>
+                {tickets.map((ticket) => (
+                  <option key={ticket.id} value={ticket.id}>
+                    {ticket.ticketNumber} · {ticket.subject}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button className="admin-primary-button" disabled={isBusy || !grantReason.trim()} type="submit">
+              {isBusy ? 'Applying grant...' : 'Grant free months'}
+            </button>
+          </form>
+        ) : (
+          <p className="admin-empty" style={{ padding: '12px 0' }}>
+            Billing grants require an active Stripe subscription and non-complimentary billing.
+          </p>
+        )}
+      </section>
 
       <div className="admin-detail-grid">
         <section className="admin-panel">
@@ -329,95 +438,6 @@ export default function WorkshopDetailPage() {
             {isBusy ? 'Saving...' : 'Add note'}
           </button>
         </form>
-      </section>
-
-      <section className="admin-panel" style={{ marginTop: 16 }}>
-        <h2>Billing grants</h2>
-        <p style={{ color: '#6b7280', marginTop: 0 }}>
-          Apply 1–3 free months via Stripe coupon. Recorded in the audit log below.
-        </p>
-
-        {billingGrants.length ? (
-          <div className="admin-table-wrap" style={{ marginBottom: 20 }}>
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Months</th>
-                  <th>Reason</th>
-                  <th>Granted</th>
-                  <th>Until</th>
-                  <th>Ticket</th>
-                </tr>
-              </thead>
-              <tbody>
-                {billingGrants.map((grant) => (
-                  <tr key={grant.id}>
-                    <td>{grant.months}</td>
-                    <td>{grant.reason}</td>
-                    <td>
-                      {formatDateTime(grant.grantedAt)}
-                      <div style={{ color: '#6b7280', fontSize: '0.84rem', marginTop: 4 }}>
-                        {grant.grantedByEmail || '—'}
-                      </div>
-                    </td>
-                    <td>{formatDateTime(grant.effectiveUntil)}</td>
-                    <td>
-                      {grant.supportTicketId ? (
-                        <Link className="admin-table-link" to={`/tickets/${grant.supportTicketId}`}>
-                          View ticket
-                        </Link>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="admin-empty" style={{ padding: '12px 0' }}>
-            No billing grants recorded yet.
-          </p>
-        )}
-
-        {!workshop.billingExempt && workshop.stripeSubscriptionId ? (
-          <form className="admin-form-block" onSubmit={handleApplyGrant}>
-            <label>
-              Free months
-              <select value={grantMonths} onChange={(event) => setGrantMonths(event.target.value)}>
-                <option value="1">1 month</option>
-                <option value="2">2 months</option>
-                <option value="3">3 months</option>
-              </select>
-            </label>
-            <label>
-              Reason
-              <textarea
-                placeholder="Goodwill comp, onboarding issue, etc."
-                rows={3}
-                value={grantReason}
-                onChange={(event) => setGrantReason(event.target.value)}
-              />
-            </label>
-            <label>
-              Linked ticket (optional)
-              <input
-                placeholder="Ticket UUID"
-                type="text"
-                value={grantTicketId}
-                onChange={(event) => setGrantTicketId(event.target.value)}
-              />
-            </label>
-            <button disabled={isBusy || !grantReason.trim()} type="submit">
-              {isBusy ? 'Applying grant...' : 'Grant free months'}
-            </button>
-          </form>
-        ) : (
-          <p className="admin-empty" style={{ padding: '12px 0' }}>
-            Billing grants require an active Stripe subscription and non-complimentary billing.
-          </p>
-        )}
       </section>
 
       <section className="admin-table-card" style={{ marginTop: 16 }}>

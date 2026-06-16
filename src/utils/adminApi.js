@@ -150,6 +150,10 @@ export function deletePendingSignup(signupId) {
   });
 }
 
+export function fetchBillingGrantHistory() {
+  return adminRequest('billing-grants');
+}
+
 export function applyBillingGrant(workshopId, payload) {
   return adminRequest('apply-billing-grant', {
     method: 'POST',

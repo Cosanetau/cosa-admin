@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle2, MessageSquare, RotateCcw } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Gift, MessageSquare, RotateCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
@@ -447,6 +447,20 @@ export default function TicketDetailPage() {
               <dd>{formatDateTime(ticket.updatedAt)}</dd>
             </div>
           </dl>
+
+          <div className="admin-form-block">
+            <h3>Billing comp</h3>
+            <p className="admin-form-hint">
+              Grant 1–3 free months on this workshop&apos;s Stripe subscription.
+            </p>
+            <Link
+              className="admin-secondary-button"
+              to={`/free-months?workshopId=${ticket.workshopId}&ticketId=${ticket.id}`}
+            >
+              <Gift size={16} style={{ marginRight: 6, verticalAlign: -2 }} />
+              Grant free months
+            </Link>
+          </div>
 
           <form className="admin-form-block" onSubmit={handleUpdateTicket}>
             <h3>Ticket settings</h3>

@@ -1,4 +1,4 @@
-import { LayoutDashboard, LifeBuoy, LogOut, UserPlus } from 'lucide-react';
+import { Gift, LayoutDashboard, LifeBuoy, LogOut, UserPlus } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 
@@ -28,6 +28,13 @@ export default function AdminLayout() {
           >
             <UserPlus size={18} />
             Signups
+          </NavLink>
+          <NavLink
+            className={({ isActive }) => `admin-nav-link${isActive ? ' is-active' : ''}`}
+            to="/free-months"
+          >
+            <Gift size={18} />
+            Free months
           </NavLink>
           <NavLink
             className={({ isActive }) => `admin-nav-link${isActive ? ' is-active' : ''}`}
