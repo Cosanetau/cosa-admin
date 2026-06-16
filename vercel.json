@@ -1,0 +1,20 @@
+{
+  "buildCommand": "npm run build",
+  "framework": "vite",
+  "installCommand": "npm install",
+  "functions": {
+    "api/admin.js": {
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
+}

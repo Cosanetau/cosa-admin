@@ -1,0 +1,257 @@
+import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { fetchWorkshopDetail } from '../utils/adminApi';
+
+function formatDate(value) {
+  if (!value) {
+    return '—';
+  }
+
+  return new Date(value).toLocaleDateString('en-AU', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return '—';
+  }
+
+  return new Date(value).toLocaleString('en-AU', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function DetailItem({ label, value }) {
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>{value || '—'}</dd>
+    </div>
+  );
+}
+
+export default function WorkshopDetailPage() {
+  const { workshopId } = useParams();
+  const [workshop, setWorkshop] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!workshopId) {
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage('');
+
+    fetchWorkshopDetail(workshopId)
+      .then((result) => {
+        setWorkshop(result.workshop || null);
+      })
+      .catch((error) => {
+        setErrorMessage(error.message);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [workshopId]);
+
+  if (isLoading) {
+    return <div className="admin-loading">Loading workshop...</div>;
+  }
+
+  if (errorMessage) {
+    return <div className="form-error">{errorMessage}</div>;
+  }
+
+  if (!workshop) {
+    return <div className="admin-empty">Workshop not found.</div>;
+  }
+
+  const integrationEntries = [
+    ['Xero', workshop.integrations.xero],
+    ['QuickBooks', workshop.integrations.quickbooks],
+    ['Podium', workshop.integrations.podium],
+    ['GoHighLevel', workshop.integrations.gohighlevel],
+  ];
+
+  return (
+    <>
+      <header className="admin-page-header">
+        <div>
+          <Link className="admin-link-button" to="/">
+            <ArrowLeft size={16} />
+            Back to workshops
+          </Link>
+          <p className="admin-kicker">Workshop detail</p>
+          <h1>{workshop.name}</h1>
+          <span>{workshop.slug || workshop.id}</span>
+        </div>
+      </header>
+
+      {workshop.alerts.length ? (
+        <div className="admin-panel">
+          <h2>Alerts</h2>
+          <div className="admin-alert-list">
+            {workshop.alerts.map((alert) => (
+              <span
+                className={`admin-badge ${
+                  alert.level === 'critical'
+                    ? 'is-critical'
+                    : alert.level === 'warning'
+                      ? 'is-warning'
+                      : 'is-muted'
+                }`}
+                key={`${alert.type}-${alert.message}`}
+              >
+                {alert.message}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="admin-detail-grid">
+        <section className="admin-panel">
+          <h2>Account</h2>
+          <dl>
+            <DetailItem label="Signup date" value={formatDate(workshop.createdAt)} />
+            <DetailItem label="Plan" value={workshop.planKey} />
+            <DetailItem
+              label="Subscription"
+              value={
+                workshop.billingExempt
+                  ? 'Complimentary (billing exempt)'
+                  : workshop.subscriptionStatus
+              }
+            />
+            <DetailItem label="Primary contact" value={workshop.primaryContact} />
+            <DetailItem
+              label="Main controllers"
+              value={workshop.staff.mainControllerEmails.join(', ')}
+            />
+          </dl>
+        </section>
+
+        <section className="admin-panel">
+          <h2>Business</h2>
+          <dl>
+            <DetailItem label="Business name" value={workshop.business.name} />
+            <DetailItem label="ABN" value={workshop.business.abn} />
+            <DetailItem label="Phone" value={workshop.business.phone} />
+            <DetailItem label="Email" value={workshop.business.email} />
+            <DetailItem label="Address" value={workshop.business.address} />
+          </dl>
+        </section>
+
+        <section className="admin-panel">
+          <h2>Staff</h2>
+          <dl>
+            <DetailItem
+              label="Billable staff"
+              value={`${workshop.staff.billableCount} / ${workshop.staff.userLimit}`}
+            />
+            <DetailItem label="Technicians" value={String(workshop.staff.technicianCount)} />
+          </dl>
+        </section>
+
+        <section className="admin-panel">
+          <h2>Usage</h2>
+          <dl>
+            <DetailItem label="Customers" value={String(workshop.usage.customers)} />
+            <DetailItem label="Bookings" value={String(workshop.usage.bookings)} />
+            <DetailItem label="Invoices" value={String(workshop.usage.invoices)} />
+            <DetailItem label="Vehicles" value={String(workshop.usage.vehicles)} />
+          </dl>
+        </section>
+
+        <section className="admin-panel">
+          <h2>Billing</h2>
+          <dl>
+            <DetailItem label="Next payment" value={formatDateTime(workshop.billing?.nextPaymentAt)} />
+            <DetailItem label="Billing cycle" value={workshop.billing?.billingCycle} />
+            <DetailItem label="Stripe status" value={workshop.billing?.stripeStatus} />
+            {workshop.billing?.stripeError ? (
+              <DetailItem label="Stripe error" value={workshop.billing.stripeError} />
+            ) : null}
+          </dl>
+          <div className="admin-chip-row" style={{ marginTop: 16 }}>
+            {workshop.billing?.stripeDashboardCustomerUrl ? (
+              <a
+                className="admin-link-button"
+                href={workshop.billing.stripeDashboardCustomerUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Stripe customer
+                <ExternalLink size={14} />
+              </a>
+            ) : null}
+            {workshop.billing?.stripeDashboardSubscriptionUrl ? (
+              <a
+                className="admin-link-button"
+                href={workshop.billing.stripeDashboardSubscriptionUrl}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Stripe subscription
+                <ExternalLink size={14} />
+              </a>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="admin-panel">
+          <h2>Integrations</h2>
+          <div className="admin-chip-row">
+            {integrationEntries.map(([label, connected]) => (
+              <span className={`admin-chip ${connected ? 'is-on' : 'is-off'}`} key={label}>
+                {label}: {connected ? 'Connected' : 'Not connected'}
+              </span>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <section className="admin-table-card" style={{ marginTop: 16 }}>
+        <div className="admin-panel">
+          <h2>Staff members</h2>
+        </div>
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(workshop.staffMembers || []).map((member) => (
+                <tr key={member.id}>
+                  <td>{member.name}</td>
+                  <td>{member.email || '—'}</td>
+                  <td>{member.role}</td>
+                  <td>
+                    <span className={`admin-badge ${member.active ? 'is-active' : 'is-muted'}`}>
+                      {member.active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </>
+  );
+}
