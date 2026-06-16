@@ -23,6 +23,11 @@ import {
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
 
+function normalizeSupportCloseStatus(value) {
+  const normalized = String(value || 'closed').trim().toLowerCase();
+  return normalized === 'resolved' ? 'resolved' : 'closed';
+}
+
 function getAction(request) {
   if (request.query?.action) {
     return String(request.query.action).trim();
@@ -143,6 +148,7 @@ export default async function handler(request, response) {
         workshopId: workshopId || '',
         needsReply: filter === 'needs_reply',
         openOnly: filter === 'open',
+        closedOnly: filter === 'closed',
       });
       const stats = getAdminTicketStats(tickets);
 
@@ -187,13 +193,17 @@ export default async function handler(request, response) {
 
     const ticketId = getFilterValue(request, 'ticketId');
     const body = String(request.body?.body || '').trim();
+    const closeAfterReply = Boolean(request.body?.closeAfterReply);
+    const closeStatus = closeAfterReply
+      ? normalizeSupportCloseStatus(request.body?.closeStatus)
+      : '';
 
     if (!ticketId || !body) {
       return response.status(400).json({ error: 'ticketId and body are required.' });
     }
 
     try {
-      const result = await addAdminTicketReply({
+      let result = await addAdminTicketReply({
         supabaseAdmin: auth.supabaseAdmin,
         ticketId,
         authorEmail: auth.user.email || '',
@@ -217,6 +227,13 @@ export default async function handler(request, response) {
         });
       } catch {
         // Email failure should not block ticket replies.
+      }
+
+      if (closeStatus) {
+        const ticket = await updateAdminTicket(auth.supabaseAdmin, ticketId, {
+          status: closeStatus,
+        });
+        result = { ...result, ticket };
       }
 
       return response.status(200).json(result);
@@ -272,6 +289,7 @@ export default async function handler(request, response) {
       const ticket = await updateAdminTicket(auth.supabaseAdmin, ticketId, {
         status: request.body?.status,
         priority: request.body?.priority,
+        needsCosaReply: request.body?.needsCosaReply,
       });
 
       return response.status(200).json({ ticket });

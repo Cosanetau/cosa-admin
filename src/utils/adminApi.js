@@ -95,11 +95,31 @@ export function fetchTicketDetail(ticketId) {
   return adminRequest('ticket', { ticketId });
 }
 
-export function replyToTicket(ticketId, body) {
+export function replyToTicket(ticketId, body, options = {}) {
   return adminRequest('reply-ticket', {
     method: 'POST',
     ticketId,
-    body: { body },
+    body: {
+      body,
+      closeAfterReply: Boolean(options.closeAfterReply),
+      closeStatus: options.closeStatus || 'resolved',
+    },
+  });
+}
+
+export function closeTicket(ticketId, status = 'closed') {
+  return adminRequest('update-ticket', {
+    method: 'POST',
+    ticketId,
+    body: { status },
+  });
+}
+
+export function reopenTicket(ticketId) {
+  return adminRequest('update-ticket', {
+    method: 'POST',
+    ticketId,
+    body: { status: 'open', needsCosaReply: false },
   });
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { fetchTickets } from '../utils/adminApi';
+import { closeTicket, fetchTickets } from '../utils/adminApi';
 
 function formatDateTime(value) {
   if (!value) {
@@ -23,8 +23,13 @@ function formatStatusLabel(status) {
 const filters = [
   { value: 'needs_reply', label: 'Needs COSA reply' },
   { value: 'open', label: 'Open' },
+  { value: 'closed', label: 'Closed' },
   { value: 'all', label: 'All' },
 ];
+
+function isTicketClosed(status) {
+  return ['closed', 'resolved'].includes(String(status || '').toLowerCase());
+}
 
 export default function TicketsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -32,6 +37,7 @@ export default function TicketsPage() {
   const [stats, setStats] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [closingId, setClosingId] = useState('');
 
   const filter = searchParams.get('filter') || 'needs_reply';
 
@@ -53,6 +59,30 @@ export default function TicketsPage() {
   }, [filter]);
 
   const filteredTickets = useMemo(() => tickets, [tickets]);
+
+  async function handleCloseFromList(ticket) {
+    if (!window.confirm(`Close ${ticket.ticketNumber}?`)) {
+      return;
+    }
+
+    setClosingId(ticket.id);
+    setErrorMessage('');
+
+    try {
+      await closeTicket(ticket.id, 'closed');
+      setTickets((current) =>
+        filter === 'closed'
+          ? current.map((row) =>
+              row.id === ticket.id ? { ...row, status: 'closed', needsCosaReply: false } : row,
+            )
+          : current.filter((row) => row.id !== ticket.id),
+      );
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setClosingId('');
+    }
+  }
 
   return (
     <>
@@ -113,6 +143,7 @@ export default function TicketsPage() {
                   <th>Status</th>
                   <th>Category</th>
                   <th>Updated</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -139,6 +170,23 @@ export default function TicketsPage() {
                     <td>{formatStatusLabel(ticket.status)}</td>
                     <td>{ticket.category}</td>
                     <td>{formatDateTime(ticket.updatedAt)}</td>
+                    <td>
+                      <div className="admin-table-actions">
+                        <Link className="admin-table-link" to={`/tickets/${ticket.id}`}>
+                          Reply
+                        </Link>
+                        {!isTicketClosed(ticket.status) ? (
+                          <button
+                            className="admin-danger-button"
+                            disabled={closingId === ticket.id}
+                            type="button"
+                            onClick={() => handleCloseFromList(ticket)}
+                          >
+                            {closingId === ticket.id ? 'Closing...' : 'Close'}
+                          </button>
+                        ) : null}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

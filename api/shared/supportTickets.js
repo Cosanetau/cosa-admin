@@ -111,6 +111,10 @@ export async function listAdminTickets(supabaseAdmin, filters = {}) {
     query = query.in('status', ['open', 'in_progress', 'waiting_on_customer']);
   }
 
+  if (filters.closedOnly) {
+    query = query.in('status', ['closed', 'resolved']);
+  }
+
   const { data, error } = await query;
 
   if (error) {
@@ -219,7 +223,10 @@ export async function addAdminTicketReply({
     ticketUpdate.last_cosa_reply_at = now;
     ticketUpdate.needs_cosa_reply = false;
     ticketUpdate.status =
-      ticket.status === 'open' || ticket.status === 'in_progress'
+      ticket.status === 'open' ||
+      ticket.status === 'in_progress' ||
+      ticket.status === 'closed' ||
+      ticket.status === 'resolved'
         ? 'waiting_on_customer'
         : ticket.status;
   }
@@ -248,10 +255,18 @@ export async function updateAdminTicket(supabaseAdmin, ticketId, updates) {
 
   if (updates.status) {
     payload.status = normalizeSupportStatus(updates.status);
+
+    if (['closed', 'resolved'].includes(payload.status)) {
+      payload.needs_cosa_reply = false;
+    }
   }
 
   if (updates.priority) {
     payload.priority = normalizeSupportPriority(updates.priority);
+  }
+
+  if (typeof updates.needsCosaReply === 'boolean') {
+    payload.needs_cosa_reply = updates.needsCosaReply;
   }
 
   const { data, error } = await supabaseAdmin

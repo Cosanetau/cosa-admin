@@ -1,9 +1,11 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, MessageSquare, RotateCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   addTicketInternalNote,
+  closeTicket,
   fetchTicketDetail,
+  reopenTicket,
   replyToTicket,
   updateTicket,
 } from '../utils/adminApi';
@@ -36,11 +38,16 @@ function formatStatusLabel(status) {
   return String(status || 'open').replaceAll('_', ' ');
 }
 
+function isTicketClosed(status) {
+  return ['closed', 'resolved'].includes(String(status || '').toLowerCase());
+}
+
 export default function TicketDetailPage() {
   const { ticketId } = useParams();
   const [ticket, setTicket] = useState(null);
   const [messages, setMessages] = useState([]);
   const [replyBody, setReplyBody] = useState('');
+  const [closeAfterReply, setCloseAfterReply] = useState(false);
   const [internalBody, setInternalBody] = useState('');
   const [status, setStatus] = useState('open');
   const [priority, setPriority] = useState('normal');
@@ -74,10 +81,16 @@ export default function TicketDetailPage() {
       });
   }, [ticketId]);
 
+  function applyTicketUpdate(nextTicket) {
+    setTicket((current) => ({ ...current, ...nextTicket }));
+    setStatus(nextTicket.status || 'open');
+    setPriority(nextTicket.priority || 'normal');
+  }
+
   async function handleReply(event) {
     event.preventDefault();
 
-    if (isBusy || !ticket) {
+    if (isBusy || !ticket || !replyBody.trim()) {
       return;
     }
 
@@ -86,11 +99,45 @@ export default function TicketDetailPage() {
     setSuccessMessage('');
 
     try {
-      const result = await replyToTicket(ticket.id, replyBody);
-      setTicket(result.ticket);
+      const result = await replyToTicket(ticket.id, replyBody, {
+        closeAfterReply,
+        closeStatus: 'resolved',
+      });
+      applyTicketUpdate(result.ticket);
       setMessages((current) => [...current, result.message]);
       setReplyBody('');
-      setSuccessMessage('Reply sent to workshop.');
+      setCloseAfterReply(false);
+      setSuccessMessage(
+        closeAfterReply ? 'Reply sent and ticket resolved.' : 'Reply sent to workshop.',
+      );
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleReplyAndResolve(event) {
+    event.preventDefault();
+
+    if (isBusy || !ticket || !replyBody.trim()) {
+      return;
+    }
+
+    setIsBusy(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      const result = await replyToTicket(ticket.id, replyBody, {
+        closeAfterReply: true,
+        closeStatus: 'resolved',
+      });
+      applyTicketUpdate(result.ticket);
+      setMessages((current) => [...current, result.message]);
+      setReplyBody('');
+      setCloseAfterReply(false);
+      setSuccessMessage('Reply sent and ticket resolved.');
     } catch (error) {
       setErrorMessage(error.message);
     } finally {
@@ -101,7 +148,7 @@ export default function TicketDetailPage() {
   async function handleInternalNote(event) {
     event.preventDefault();
 
-    if (isBusy || !ticket) {
+    if (isBusy || !ticket || !internalBody.trim()) {
       return;
     }
 
@@ -111,7 +158,7 @@ export default function TicketDetailPage() {
 
     try {
       const result = await addTicketInternalNote(ticket.id, internalBody);
-      setTicket(result.ticket);
+      applyTicketUpdate(result.ticket);
       setMessages((current) => [...current, result.message]);
       setInternalBody('');
       setSuccessMessage('Internal note added.');
@@ -135,8 +182,54 @@ export default function TicketDetailPage() {
 
     try {
       const result = await updateTicket(ticket.id, { status, priority });
-      setTicket((current) => ({ ...current, ...result.ticket }));
+      applyTicketUpdate(result.ticket);
       setSuccessMessage('Ticket updated.');
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleCloseTicket(nextStatus = 'closed') {
+    if (isBusy || !ticket) {
+      return;
+    }
+
+    const label = nextStatus === 'resolved' ? 'resolve' : 'close';
+
+    if (!window.confirm(`${label.charAt(0).toUpperCase()}${label.slice(1)} this ticket?`)) {
+      return;
+    }
+
+    setIsBusy(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      const result = await closeTicket(ticket.id, nextStatus);
+      applyTicketUpdate(result.ticket);
+      setSuccessMessage(nextStatus === 'resolved' ? 'Ticket resolved.' : 'Ticket closed.');
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleReopenTicket() {
+    if (isBusy || !ticket) {
+      return;
+    }
+
+    setIsBusy(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      const result = await reopenTicket(ticket.id);
+      applyTicketUpdate(result.ticket);
+      setSuccessMessage('Ticket reopened.');
     } catch (error) {
       setErrorMessage(error.message);
     } finally {
@@ -160,6 +253,8 @@ export default function TicketDetailPage() {
     );
   }
 
+  const ticketClosed = isTicketClosed(ticket.status);
+
   return (
     <>
       <header className="admin-page-header">
@@ -177,56 +272,136 @@ export default function TicketDetailPage() {
       {successMessage ? <div className="admin-success-banner">{successMessage}</div> : null}
       {errorMessage ? <div className="form-error">{errorMessage}</div> : null}
 
+      <section className="admin-ticket-action-bar">
+        {ticketClosed ? (
+          <button
+            className="admin-secondary-button"
+            disabled={isBusy}
+            type="button"
+            onClick={handleReopenTicket}
+          >
+            <RotateCcw size={16} style={{ marginRight: 6, verticalAlign: -2 }} />
+            Reopen ticket
+          </button>
+        ) : (
+          <>
+            <button
+              className="admin-primary-button"
+              disabled={isBusy}
+              type="button"
+              onClick={() => document.getElementById('admin-ticket-reply')?.focus()}
+            >
+              <MessageSquare size={16} style={{ marginRight: 6, verticalAlign: -2 }} />
+              Reply
+            </button>
+            <button
+              className="admin-secondary-button"
+              disabled={isBusy}
+              type="button"
+              onClick={() => handleCloseTicket('resolved')}
+            >
+              <CheckCircle2 size={16} style={{ marginRight: 6, verticalAlign: -2 }} />
+              Resolve
+            </button>
+            <button
+              className="admin-danger-button"
+              disabled={isBusy}
+              type="button"
+              onClick={() => handleCloseTicket('closed')}
+            >
+              Close ticket
+            </button>
+          </>
+        )}
+      </section>
+
       <div className="admin-ticket-layout">
         <section className="admin-panel">
           <div className="admin-chip-row" style={{ marginBottom: 16 }}>
             <span className={`admin-badge ${ticket.needsCosaReply ? 'is-warning' : 'is-active'}`}>
               {ticket.needsCosaReply ? 'Needs COSA reply' : 'Awaiting customer'}
             </span>
-            <span className="admin-badge is-muted">{formatStatusLabel(ticket.status)}</span>
+            <span
+              className={`admin-badge ${
+                ticketClosed ? 'is-muted' : ticket.status === 'in_progress' ? 'is-warning' : 'is-active'
+              }`}
+            >
+              {formatStatusLabel(ticket.status)}
+            </span>
             <span className="admin-badge is-muted">{ticket.category}</span>
           </div>
 
           <div className="admin-message-list">
-            {messages.map((message) => (
-              <article
-                className={`admin-message${message.isInternal ? ' is-internal' : ''}`}
-                key={message.id}
-              >
-                <header>
-                  <strong>{message.authorName}</strong>
-                  <span>{formatDateTime(message.createdAt)}</span>
-                </header>
-                {message.isInternal ? (
-                  <span className="admin-badge is-warning">Internal note</span>
-                ) : null}
-                <p>{message.body}</p>
-              </article>
-            ))}
+            {messages.length === 0 ? (
+              <div className="admin-empty">No messages on this ticket yet.</div>
+            ) : (
+              messages.map((message) => (
+                <article
+                  className={`admin-message${message.isInternal ? ' is-internal' : ''}`}
+                  key={message.id}
+                >
+                  <header>
+                    <strong>{message.authorName}</strong>
+                    <span>{formatDateTime(message.createdAt)}</span>
+                  </header>
+                  {message.isInternal ? (
+                    <span className="admin-badge is-warning">Internal note</span>
+                  ) : null}
+                  <p style={{ whiteSpace: 'pre-wrap' }}>{message.body}</p>
+                </article>
+              ))
+            )}
           </div>
 
-          <form className="admin-form-block" onSubmit={handleReply}>
+          <form className="admin-form-block admin-ticket-reply-form" onSubmit={handleReply}>
             <h3>Reply to workshop</h3>
+            <p className="admin-form-hint">
+              Your reply is visible to the workshop in COSA Core and emailed to the submitter.
+            </p>
             <textarea
+              id="admin-ticket-reply"
+              placeholder="Type your reply to the workshop..."
               required
               rows={5}
               value={replyBody}
               onChange={(event) => setReplyBody(event.target.value)}
             />
-            <button disabled={isBusy} type="submit">
-              {isBusy ? 'Sending...' : 'Send reply'}
-            </button>
+            <label className="admin-checkbox-label">
+              <input
+                checked={closeAfterReply}
+                type="checkbox"
+                onChange={(event) => setCloseAfterReply(event.target.checked)}
+              />
+              Resolve ticket after sending this reply
+            </label>
+            <div className="admin-form-actions">
+              <button className="admin-primary-button" disabled={isBusy || !replyBody.trim()} type="submit">
+                {isBusy ? 'Sending...' : 'Send reply'}
+              </button>
+              {!ticketClosed ? (
+                <button
+                  className="admin-secondary-button"
+                  disabled={isBusy || !replyBody.trim()}
+                  type="button"
+                  onClick={handleReplyAndResolve}
+                >
+                  Send &amp; resolve
+                </button>
+              ) : null}
+            </div>
           </form>
 
           <form className="admin-form-block" onSubmit={handleInternalNote}>
             <h3>Internal note</h3>
+            <p className="admin-form-hint">Only visible to COSA team — not sent to the workshop.</p>
             <textarea
+              placeholder="Billing context, callback notes, etc."
               required
               rows={4}
               value={internalBody}
               onChange={(event) => setInternalBody(event.target.value)}
             />
-            <button className="admin-secondary-button" disabled={isBusy} type="submit">
+            <button className="admin-secondary-button" disabled={isBusy || !internalBody.trim()} type="submit">
               {isBusy ? 'Saving...' : 'Add internal note'}
             </button>
           </form>
@@ -296,7 +471,7 @@ export default function TicketDetailPage() {
               </select>
             </label>
             <button className="admin-secondary-button" disabled={isBusy} type="submit">
-              {isBusy ? 'Saving...' : 'Save changes'}
+              {isBusy ? 'Saving...' : 'Save status'}
             </button>
           </form>
         </aside>

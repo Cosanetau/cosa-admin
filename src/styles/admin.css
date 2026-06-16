@@ -394,6 +394,77 @@
   font-weight: 600;
 }
 
+.admin-ticket-action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.admin-ticket-action-bar .admin-primary-button,
+.admin-ticket-action-bar .admin-secondary-button,
+.admin-ticket-action-bar .admin-danger-button {
+  display: inline-flex;
+  align-items: center;
+}
+
+.admin-primary-button {
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  border-radius: 10px;
+  background: #111827;
+  color: #ffffff;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-primary-button:hover:not(:disabled) {
+  background: #1f2937;
+}
+
+.admin-primary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-form-hint {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.admin-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #374151;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.admin-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.admin-table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.admin-ticket-reply-form {
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
 .admin-ticket-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.8fr);
