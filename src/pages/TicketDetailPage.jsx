@@ -236,16 +236,24 @@ export default function TicketDetailPage() {
           <h2>Workshop</h2>
           <dl className="admin-sidebar-list">
             <div>
-              <dt>Name</dt>
+              <dt>Business</dt>
               <dd>
                 <Link className="admin-table-link" to={`/workshops/${ticket.workshopId}`}>
-                  {ticket.workshop?.name || 'Workshop'}
+                  {ticket.context?.businessName || ticket.workshop?.name || 'Workshop'}
                 </Link>
               </dd>
             </div>
             <div>
-              <dt>Email</dt>
-              <dd>{ticket.workshop?.businessEmail || '—'}</dd>
+              <dt>Submitted by</dt>
+              <dd>{ticket.context?.submitterName || '—'}</dd>
+            </div>
+            <div>
+              <dt>Submitter email</dt>
+              <dd>{ticket.context?.submitterEmail || ticket.workshop?.businessEmail || '—'}</dd>
+            </div>
+            <div>
+              <dt>Business email</dt>
+              <dd>{ticket.workshop?.businessEmail || ticket.context?.businessEmail || '—'}</dd>
             </div>
             <div>
               <dt>Phone</dt>

@@ -133,7 +133,7 @@ export default function TicketsPage() {
                     </td>
                     <td>
                       <Link className="admin-table-link" to={`/workshops/${ticket.workshopId}`}>
-                        {ticket.workshop?.name || 'Workshop'}
+                        {ticket.context?.businessName || ticket.workshop?.name || 'Workshop'}
                       </Link>
                     </td>
                     <td>{formatStatusLabel(ticket.status)}</td>
