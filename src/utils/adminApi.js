@@ -20,13 +20,31 @@ async function adminRequest(action, options = {}) {
     params.set('workshopId', options.workshopId);
   }
 
+  if (options.ticketId) {
+    params.set('ticketId', options.ticketId);
+  }
+
+  if (options.filter) {
+    params.set('filter', options.filter);
+  }
+
+  const method = options.method || (options.body ? 'POST' : 'GET');
+
   const response = await fetch(`/api/admin?${params.toString()}`, {
-    method: options.method || 'GET',
+    method,
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    body:
+      method === 'POST'
+        ? JSON.stringify({
+            action,
+            ticketId: options.ticketId,
+            workshopId: options.workshopId,
+            ...options.body,
+          })
+        : undefined,
   });
 
   const payload = await response.json().catch(() => ({}));
@@ -45,16 +63,15 @@ export function fetchAdminMe(accessToken) {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
-  })
-    .then(async (response) => {
-      const payload = await response.json().catch(() => ({}));
+  }).then(async (response) => {
+    const payload = await response.json().catch(() => ({}));
 
-      if (!response.ok) {
-        throw new Error(payload.error || 'Admin access check failed.');
-      }
+    if (!response.ok) {
+      throw new Error(payload.error || 'Admin access check failed.');
+    }
 
-      return payload;
-    });
+    return payload;
+  });
 }
 
 export function fetchWorkshopsOverview() {
@@ -63,4 +80,36 @@ export function fetchWorkshopsOverview() {
 
 export function fetchWorkshopDetail(workshopId) {
   return adminRequest('workshop', { workshopId });
+}
+
+export function fetchTickets(filter = 'needs_reply') {
+  return adminRequest('tickets', { filter });
+}
+
+export function fetchTicketDetail(ticketId) {
+  return adminRequest('ticket', { ticketId });
+}
+
+export function replyToTicket(ticketId, body) {
+  return adminRequest('reply-ticket', {
+    method: 'POST',
+    ticketId,
+    body: { body },
+  });
+}
+
+export function addTicketInternalNote(ticketId, body) {
+  return adminRequest('internal-note', {
+    method: 'POST',
+    ticketId,
+    body: { body },
+  });
+}
+
+export function updateTicket(ticketId, payload) {
+  return adminRequest('update-ticket', {
+    method: 'POST',
+    ticketId,
+    body: payload,
+  });
 }

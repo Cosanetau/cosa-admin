@@ -41,6 +41,7 @@ function DetailItem({ label, value }) {
 export default function WorkshopDetailPage() {
   const { workshopId } = useParams();
   const [workshop, setWorkshop] = useState(null);
+  const [tickets, setTickets] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -55,6 +56,7 @@ export default function WorkshopDetailPage() {
     fetchWorkshopDetail(workshopId)
       .then((result) => {
         setWorkshop(result.workshop || null);
+        setTickets(result.tickets || []);
       })
       .catch((error) => {
         setErrorMessage(error.message);
@@ -220,6 +222,45 @@ export default function WorkshopDetailPage() {
           </div>
         </section>
       </div>
+
+      <section className="admin-table-card" style={{ marginTop: 16 }}>
+        <div className="admin-panel">
+          <h2>Support tickets ({tickets.length})</h2>
+        </div>
+        {tickets.length === 0 ? (
+          <div className="admin-empty">No support tickets for this workshop.</div>
+        ) : (
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Ticket</th>
+                  <th>Status</th>
+                  <th>Category</th>
+                  <th>Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tickets.map((ticket) => (
+                  <tr key={ticket.id}>
+                    <td>
+                      <Link className="admin-table-link" to={`/tickets/${ticket.id}`}>
+                        {ticket.ticketNumber}
+                      </Link>
+                      <div style={{ color: '#6b7280', fontSize: '0.84rem', marginTop: 4 }}>
+                        {ticket.subject}
+                      </div>
+                    </td>
+                    <td>{String(ticket.status).replaceAll('_', ' ')}</td>
+                    <td>{ticket.category}</td>
+                    <td>{formatDateTime(ticket.updatedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <section className="admin-table-card" style={{ marginTop: 16 }}>
         <div className="admin-panel">

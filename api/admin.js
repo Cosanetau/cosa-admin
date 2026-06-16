@@ -1,6 +1,13 @@
 import Stripe from 'stripe';
 import { requireCosAdmin } from './shared/adminAuth.js';
 import {
+  addAdminTicketReply,
+  getAdminTicketDetail,
+  getAdminTicketStats,
+  listAdminTickets,
+  updateAdminTicket,
+} from './shared/supportTickets.js';
+import {
   getAdminDashboardStats,
   getWorkshopOverview,
   listWorkshopsOverview,
@@ -38,6 +45,10 @@ function getStripeClient() {
   }
 
   return new Stripe(stripeSecretKey);
+}
+
+function getFilterValue(request, key) {
+  return String(request.query?.[key] || request.body?.[key] || '').trim();
 }
 
 export default async function handler(request, response) {
@@ -80,9 +91,7 @@ export default async function handler(request, response) {
       return response.status(auth.status).json({ error: auth.error });
     }
 
-    const workshopId = String(
-      request.query?.workshopId || request.body?.workshopId || '',
-    ).trim();
+    const workshopId = getFilterValue(request, 'workshopId');
 
     if (!workshopId) {
       return response.status(400).json({ error: 'workshopId is required.' });
@@ -99,13 +108,151 @@ export default async function handler(request, response) {
         return response.status(404).json({ error: 'Workshop not found.' });
       }
 
-      return response.status(200).json({ workshop });
+      const tickets = await listAdminTickets(auth.supabaseAdmin, { workshopId });
+
+      return response.status(200).json({ workshop, tickets });
     } catch (error) {
       return response.status(500).json({ error: error.message || 'Could not load workshop.' });
     }
   }
 
+  if (action === 'tickets') {
+    const auth = await requireCosAdmin(request);
+
+    if (auth.error) {
+      return response.status(auth.status).json({ error: auth.error });
+    }
+
+    const filter = getFilterValue(request, 'filter');
+    const workshopId = getFilterValue(request, 'workshopId');
+
+    try {
+      const tickets = await listAdminTickets(auth.supabaseAdmin, {
+        workshopId: workshopId || '',
+        needsReply: filter === 'needs_reply',
+        openOnly: filter === 'open',
+      });
+      const stats = getAdminTicketStats(tickets);
+
+      return response.status(200).json({ tickets, stats });
+    } catch (error) {
+      return response.status(500).json({ error: error.message || 'Could not load tickets.' });
+    }
+  }
+
+  if (action === 'ticket') {
+    const auth = await requireCosAdmin(request);
+
+    if (auth.error) {
+      return response.status(auth.status).json({ error: auth.error });
+    }
+
+    const ticketId = getFilterValue(request, 'ticketId');
+
+    if (!ticketId) {
+      return response.status(400).json({ error: 'ticketId is required.' });
+    }
+
+    try {
+      const detail = await getAdminTicketDetail(auth.supabaseAdmin, ticketId);
+
+      if (!detail) {
+        return response.status(404).json({ error: 'Support ticket not found.' });
+      }
+
+      return response.status(200).json(detail);
+    } catch (error) {
+      return response.status(500).json({ error: error.message || 'Could not load ticket.' });
+    }
+  }
+
+  if (action === 'reply-ticket') {
+    const auth = await requireCosAdmin(request);
+
+    if (auth.error) {
+      return response.status(auth.status).json({ error: auth.error });
+    }
+
+    const ticketId = getFilterValue(request, 'ticketId');
+    const body = String(request.body?.body || '').trim();
+
+    if (!ticketId || !body) {
+      return response.status(400).json({ error: 'ticketId and body are required.' });
+    }
+
+    try {
+      const result = await addAdminTicketReply({
+        supabaseAdmin: auth.supabaseAdmin,
+        ticketId,
+        authorEmail: auth.user.email || '',
+        authorName: 'COSA Support',
+        body,
+        isInternal: false,
+      });
+
+      return response.status(200).json(result);
+    } catch (error) {
+      return response.status(500).json({ error: error.message || 'Could not reply to ticket.' });
+    }
+  }
+
+  if (action === 'internal-note') {
+    const auth = await requireCosAdmin(request);
+
+    if (auth.error) {
+      return response.status(auth.status).json({ error: auth.error });
+    }
+
+    const ticketId = getFilterValue(request, 'ticketId');
+    const body = String(request.body?.body || '').trim();
+
+    if (!ticketId || !body) {
+      return response.status(400).json({ error: 'ticketId and body are required.' });
+    }
+
+    try {
+      const result = await addAdminTicketReply({
+        supabaseAdmin: auth.supabaseAdmin,
+        ticketId,
+        authorEmail: auth.user.email || '',
+        authorName: 'COSA Support',
+        body,
+        isInternal: true,
+      });
+
+      return response.status(200).json(result);
+    } catch (error) {
+      return response.status(500).json({ error: error.message || 'Could not add internal note.' });
+    }
+  }
+
+  if (action === 'update-ticket') {
+    const auth = await requireCosAdmin(request);
+
+    if (auth.error) {
+      return response.status(auth.status).json({ error: auth.error });
+    }
+
+    const ticketId = getFilterValue(request, 'ticketId');
+
+    if (!ticketId) {
+      return response.status(400).json({ error: 'ticketId is required.' });
+    }
+
+    try {
+      const ticket = await updateAdminTicket(auth.supabaseAdmin, ticketId, {
+        status: request.body?.status,
+        priority: request.body?.priority,
+      });
+
+      return response.status(200).json({ ticket });
+    } catch (error) {
+      return response.status(500).json({ error: error.message || 'Could not update ticket.' });
+    }
+  }
+
   return response.status(400).json({
-    error: 'Unknown action. Use me, workshops, or workshop.',
+    error:
+      'Unknown action. Use me, workshops, workshop, tickets, ticket, reply-ticket, internal-note, or update-ticket.',
   });
 }
