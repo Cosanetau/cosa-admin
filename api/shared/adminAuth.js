@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createServerSupabaseClient } from './supabaseServer.js';
 
 const supabaseUrl =
   process.env.SUPABASE_URL ||
@@ -19,7 +19,7 @@ export function createSupabaseAdmin() {
     throw new Error('Supabase service role is not configured.');
   }
 
-  return createClient(supabaseUrl, supabaseServiceRoleKey);
+  return createServerSupabaseClient(supabaseUrl, supabaseServiceRoleKey);
 }
 
 export function createSupabaseUserClient(accessToken) {
@@ -27,7 +27,7 @@ export function createSupabaseUserClient(accessToken) {
     throw new Error('Supabase anon key is not configured.');
   }
 
-  return createClient(supabaseUrl, supabaseAnonKey, {
+  return createServerSupabaseClient(supabaseUrl, supabaseAnonKey, {
     global: {
       headers: {
         Authorization: `Bearer ${accessToken}`,
