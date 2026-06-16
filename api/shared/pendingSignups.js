@@ -40,6 +40,20 @@ export async function listPendingSignups(supabaseAdmin, filter = 'pending') {
   return (data || []).map(mapPendingSignupRow);
 }
 
+export async function deletePendingSignup(supabaseAdmin, signupId) {
+  if (!signupId) {
+    throw new Error('signupId is required.');
+  }
+
+  const { error } = await supabaseAdmin.from('pending_signups').delete().eq('id', signupId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return true;
+}
+
 export function getPendingSignupStats(signups) {
   const now = Date.now();
   const dayMs = 24 * 60 * 60 * 1000;

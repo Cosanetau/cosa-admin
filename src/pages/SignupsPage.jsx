@@ -1,6 +1,6 @@
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { fetchPendingSignups } from '../utils/adminApi';
+import { deletePendingSignup, fetchPendingSignups } from '../utils/adminApi';
 
 const FILTERS = [
   { value: 'pending', label: 'Abandoned' },
@@ -35,6 +35,7 @@ export default function SignupsPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [deletingId, setDeletingId] = useState('');
 
   const loadSignups = useCallback(async ({ silent = false, nextFilter = filter } = {}) => {
     if (!silent) {
@@ -81,6 +82,38 @@ export default function SignupsPage() {
         .includes(search),
     );
   }, [searchTerm, signups]);
+
+  async function handleDeleteSignup(signup) {
+    const label = signup.email || signup.businessName || 'this signup';
+
+    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingId(signup.id);
+    setErrorMessage('');
+
+    try {
+      await deletePendingSignup(signup.id);
+      setSignups((current) => current.filter((row) => row.id !== signup.id));
+      setStats((current) =>
+        current
+          ? {
+              ...current,
+              total: Math.max(0, current.total - 1),
+              pending:
+                signup.status === 'pending'
+                  ? Math.max(0, current.pending - 1)
+                  : current.pending,
+            }
+          : current,
+      );
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setDeletingId('');
+    }
+  }
 
   return (
     <>
@@ -162,6 +195,7 @@ export default function SignupsPage() {
                   <th>Plan</th>
                   <th>Status</th>
                   <th>Started</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -194,6 +228,17 @@ export default function SignupsPage() {
                       </span>
                     </td>
                     <td>{formatDateTime(signup.createdAt)}</td>
+                    <td>
+                      <button
+                        className="admin-danger-button"
+                        disabled={deletingId === signup.id}
+                        type="button"
+                        onClick={() => handleDeleteSignup(signup)}
+                      >
+                        <Trash2 size={14} style={{ marginRight: 6, verticalAlign: -2 }} />
+                        {deletingId === signup.id ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

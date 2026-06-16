@@ -1,5 +1,65 @@
 const COUNT_TABLES = ['customers', 'bookings', 'invoices', 'vehicles'];
 
+const WORKSHOP_SELECT_BASE =
+  'id, name, slug, created_at, plan_key, stripe_customer_id, stripe_subscription_id, subscription_status, billing_exempt';
+
+function isMissingLastSeenColumnError(error) {
+  const message = String(error?.message || error || '').toLowerCase();
+  return message.includes('last_seen_at') && message.includes('does not exist');
+}
+
+async function fetchAllWorkshops(supabaseAdmin) {
+  let { data, error } = await supabaseAdmin
+    .from('workshops')
+    .select(`${WORKSHOP_SELECT_BASE}, last_seen_at`)
+    .order('created_at', { ascending: false });
+
+  if (error && isMissingLastSeenColumnError(error)) {
+    ({ data, error } = await supabaseAdmin
+      .from('workshops')
+      .select(WORKSHOP_SELECT_BASE)
+      .order('created_at', { ascending: false }));
+  }
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data || []).map((workshop) => ({
+    ...workshop,
+    last_seen_at: workshop.last_seen_at || null,
+  }));
+}
+
+async function fetchWorkshopRow(supabaseAdmin, workshopId) {
+  let { data, error } = await supabaseAdmin
+    .from('workshops')
+    .select(`${WORKSHOP_SELECT_BASE}, last_seen_at`)
+    .eq('id', workshopId)
+    .maybeSingle();
+
+  if (error && isMissingLastSeenColumnError(error)) {
+    ({ data, error } = await supabaseAdmin
+      .from('workshops')
+      .select(WORKSHOP_SELECT_BASE)
+      .eq('id', workshopId)
+      .maybeSingle());
+  }
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return {
+    ...data,
+    last_seen_at: data.last_seen_at || null,
+  };
+}
+
 function groupCountRows(rows, workshopIdKey = 'workshop_id') {
   const counts = {};
 
@@ -293,21 +353,11 @@ async function fetchWorkshopContext(supabaseAdmin, workshopIds) {
 }
 
 export async function listWorkshopsOverview(supabaseAdmin) {
-  const { data: workshops, error } = await supabaseAdmin
-    .from('workshops')
-    .select(
-      'id, name, slug, created_at, last_seen_at, plan_key, stripe_customer_id, stripe_subscription_id, subscription_status, billing_exempt',
-    )
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const workshopIds = (workshops || []).map((workshop) => workshop.id);
+  const workshops = await fetchAllWorkshops(supabaseAdmin);
+  const workshopIds = workshops.map((workshop) => workshop.id);
   const context = await fetchWorkshopContext(supabaseAdmin, workshopIds);
 
-  return (workshops || [])
+  return workshops
     .map((workshop) => mapWorkshopSummary(workshop, context))
     .filter((workshop) => !shouldHideFromAdminOverview(workshop));
 }
@@ -357,17 +407,7 @@ async function fetchStripeBilling(stripe, workshop) {
 }
 
 export async function getWorkshopOverview(supabaseAdmin, workshopId, stripe) {
-  const { data: workshop, error } = await supabaseAdmin
-    .from('workshops')
-    .select(
-      'id, name, slug, created_at, last_seen_at, plan_key, stripe_customer_id, stripe_subscription_id, subscription_status, billing_exempt',
-    )
-    .eq('id', workshopId)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  const workshop = await fetchWorkshopRow(supabaseAdmin, workshopId);
 
   if (!workshop) {
     return null;

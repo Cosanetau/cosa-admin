@@ -28,6 +28,10 @@ async function adminRequest(action, options = {}) {
     params.set('filter', options.filter);
   }
 
+  if (options.signupId) {
+    params.set('signupId', options.signupId);
+  }
+
   const method = options.method || (options.body ? 'POST' : 'GET');
 
   const response = await fetch(`/api/admin?${params.toString()}`, {
@@ -42,6 +46,7 @@ async function adminRequest(action, options = {}) {
             action,
             ticketId: options.ticketId,
             workshopId: options.workshopId,
+            signupId: options.signupId,
             ...options.body,
           })
         : undefined,
@@ -116,6 +121,13 @@ export function updateTicket(ticketId, payload) {
 
 export function fetchPendingSignups(filter = 'pending') {
   return adminRequest('pending-signups', { filter });
+}
+
+export function deletePendingSignup(signupId) {
+  return adminRequest('delete-pending-signup', {
+    method: 'POST',
+    signupId,
+  });
 }
 
 export function applyBillingGrant(workshopId, payload) {

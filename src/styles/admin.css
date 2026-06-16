@@ -461,6 +461,28 @@
   border: 1px solid #d1d5db;
 }
 
+.admin-danger-button {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #b91c1c;
+  padding: 8px 12px;
+  font-weight: 700;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+.admin-danger-button:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.admin-danger-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .admin-refresh-button {
   display: inline-flex;
   align-items: center;

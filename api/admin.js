@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { requireCosAdmin } from './shared/adminAuth.js';
 import { applyBillingGrant, listBillingGrants } from './shared/billingGrants.js';
 import {
+  deletePendingSignup,
   getPendingSignupStats,
   listPendingSignups,
 } from './shared/pendingSignups.js';
@@ -298,6 +299,27 @@ export default async function handler(request, response) {
     }
   }
 
+  if (action === 'delete-pending-signup') {
+    const auth = await requireCosAdmin(request);
+
+    if (auth.error) {
+      return response.status(auth.status).json({ error: auth.error });
+    }
+
+    const signupId = getFilterValue(request, 'signupId');
+
+    if (!signupId) {
+      return response.status(400).json({ error: 'signupId is required.' });
+    }
+
+    try {
+      await deletePendingSignup(auth.supabaseAdmin, signupId);
+      return response.status(200).json({ ok: true });
+    } catch (error) {
+      return response.status(500).json({ error: error.message || 'Could not delete signup.' });
+    }
+  }
+
   if (action === 'apply-billing-grant') {
     const auth = await requireCosAdmin(request);
 
@@ -361,6 +383,6 @@ export default async function handler(request, response) {
 
   return response.status(400).json({
     error:
-      'Unknown action. Use me, workshops, workshop, tickets, ticket, reply-ticket, internal-note, update-ticket, pending-signups, apply-billing-grant, or add-workshop-note.',
+      'Unknown action. Use me, workshops, workshop, tickets, ticket, reply-ticket, internal-note, update-ticket, pending-signups, delete-pending-signup, apply-billing-grant, or add-workshop-note.',
   });
 }
