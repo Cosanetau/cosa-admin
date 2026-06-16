@@ -113,3 +113,23 @@ export function updateTicket(ticketId, payload) {
     body: payload,
   });
 }
+
+export function fetchPendingSignups(filter = 'pending') {
+  return adminRequest('pending-signups', { filter });
+}
+
+export function applyBillingGrant(workshopId, payload) {
+  return adminRequest('apply-billing-grant', {
+    method: 'POST',
+    workshopId,
+    body: payload,
+  });
+}
+
+export function addWorkshopNote(workshopId, body) {
+  return adminRequest('add-workshop-note', {
+    method: 'POST',
+    workshopId,
+    body: { body },
+  });
+}

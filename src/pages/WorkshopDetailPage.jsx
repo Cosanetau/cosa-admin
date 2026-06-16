@@ -1,7 +1,11 @@
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { fetchWorkshopDetail } from '../utils/adminApi';
+import {
+  addWorkshopNote,
+  applyBillingGrant,
+  fetchWorkshopDetail,
+} from '../utils/adminApi';
 
 function formatDate(value) {
   if (!value) {
@@ -42,8 +46,24 @@ export default function WorkshopDetailPage() {
   const { workshopId } = useParams();
   const [workshop, setWorkshop] = useState(null);
   const [tickets, setTickets] = useState([]);
+  const [billingGrants, setBillingGrants] = useState([]);
+  const [adminNotes, setAdminNotes] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isBusy, setIsBusy] = useState(false);
+  const [grantMonths, setGrantMonths] = useState('1');
+  const [grantReason, setGrantReason] = useState('');
+  const [grantTicketId, setGrantTicketId] = useState('');
+  const [noteBody, setNoteBody] = useState('');
+
+  async function loadWorkshop() {
+    const result = await fetchWorkshopDetail(workshopId);
+    setWorkshop(result.workshop || null);
+    setTickets(result.tickets || []);
+    setBillingGrants(result.billingGrants || []);
+    setAdminNotes(result.adminNotes || []);
+  }
 
   useEffect(() => {
     if (!workshopId) {
@@ -53,11 +73,7 @@ export default function WorkshopDetailPage() {
     setIsLoading(true);
     setErrorMessage('');
 
-    fetchWorkshopDetail(workshopId)
-      .then((result) => {
-        setWorkshop(result.workshop || null);
-        setTickets(result.tickets || []);
-      })
+    loadWorkshop()
       .catch((error) => {
         setErrorMessage(error.message);
       })
@@ -65,6 +81,58 @@ export default function WorkshopDetailPage() {
         setIsLoading(false);
       });
   }, [workshopId]);
+
+  async function handleApplyGrant(event) {
+    event.preventDefault();
+
+    if (isBusy || !workshopId) {
+      return;
+    }
+
+    setIsBusy(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      const result = await applyBillingGrant(workshopId, {
+        months: Number(grantMonths),
+        reason: grantReason,
+        supportTicketId: grantTicketId,
+      });
+      setBillingGrants((current) => [result.grant, ...current]);
+      setGrantReason('');
+      setGrantTicketId('');
+      setSuccessMessage(`Granted ${result.grant.months} free month(s) via Stripe.`);
+      await loadWorkshop();
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleAddNote(event) {
+    event.preventDefault();
+
+    if (isBusy || !workshopId || !noteBody.trim()) {
+      return;
+    }
+
+    setIsBusy(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      const result = await addWorkshopNote(workshopId, noteBody);
+      setAdminNotes((current) => [result.note, ...current]);
+      setNoteBody('');
+      setSuccessMessage('Internal note added.');
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setIsBusy(false);
+    }
+  }
 
   if (isLoading) {
     return <div className="admin-loading">Loading workshop...</div>;
@@ -99,6 +167,9 @@ export default function WorkshopDetailPage() {
         </div>
       </header>
 
+      {successMessage ? <div className="admin-success-banner">{successMessage}</div> : null}
+      {errorMessage ? <div className="form-error">{errorMessage}</div> : null}
+
       {workshop.alerts.length ? (
         <div className="admin-panel">
           <h2>Alerts</h2>
@@ -126,6 +197,7 @@ export default function WorkshopDetailPage() {
           <h2>Account</h2>
           <dl>
             <DetailItem label="Signup date" value={formatDate(workshop.createdAt)} />
+            <DetailItem label="Last seen" value={formatDateTime(workshop.lastSeenAt)} />
             <DetailItem label="Plan" value={workshop.planKey} />
             <DetailItem
               label="Subscription"
@@ -222,6 +294,131 @@ export default function WorkshopDetailPage() {
           </div>
         </section>
       </div>
+
+      <section className="admin-panel" style={{ marginTop: 16 }}>
+        <h2>Internal notes</h2>
+        {adminNotes.length === 0 ? (
+          <p className="admin-empty" style={{ padding: '12px 0' }}>
+            No internal notes yet.
+          </p>
+        ) : (
+          <div className="admin-message-list">
+            {adminNotes.map((note) => (
+              <article className="admin-message is-internal" key={note.id}>
+                <header>
+                  <strong>{note.authorEmail || 'COSA team'}</strong>
+                  <span>{formatDateTime(note.createdAt)}</span>
+                </header>
+                <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{note.body}</p>
+              </article>
+            ))}
+          </div>
+        )}
+
+        <form className="admin-form-block" onSubmit={handleAddNote}>
+          <label>
+            Add note
+            <textarea
+              placeholder="Spoke to owner Tuesday, onboarding call booked..."
+              rows={3}
+              value={noteBody}
+              onChange={(event) => setNoteBody(event.target.value)}
+            />
+          </label>
+          <button disabled={isBusy || !noteBody.trim()} type="submit">
+            {isBusy ? 'Saving...' : 'Add note'}
+          </button>
+        </form>
+      </section>
+
+      <section className="admin-panel" style={{ marginTop: 16 }}>
+        <h2>Billing grants</h2>
+        <p style={{ color: '#6b7280', marginTop: 0 }}>
+          Apply 1–3 free months via Stripe coupon. Recorded in the audit log below.
+        </p>
+
+        {billingGrants.length ? (
+          <div className="admin-table-wrap" style={{ marginBottom: 20 }}>
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Months</th>
+                  <th>Reason</th>
+                  <th>Granted</th>
+                  <th>Until</th>
+                  <th>Ticket</th>
+                </tr>
+              </thead>
+              <tbody>
+                {billingGrants.map((grant) => (
+                  <tr key={grant.id}>
+                    <td>{grant.months}</td>
+                    <td>{grant.reason}</td>
+                    <td>
+                      {formatDateTime(grant.grantedAt)}
+                      <div style={{ color: '#6b7280', fontSize: '0.84rem', marginTop: 4 }}>
+                        {grant.grantedByEmail || '—'}
+                      </div>
+                    </td>
+                    <td>{formatDateTime(grant.effectiveUntil)}</td>
+                    <td>
+                      {grant.supportTicketId ? (
+                        <Link className="admin-table-link" to={`/tickets/${grant.supportTicketId}`}>
+                          View ticket
+                        </Link>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="admin-empty" style={{ padding: '12px 0' }}>
+            No billing grants recorded yet.
+          </p>
+        )}
+
+        {!workshop.billingExempt && workshop.stripeSubscriptionId ? (
+          <form className="admin-form-block" onSubmit={handleApplyGrant}>
+            <label>
+              Free months
+              <select value={grantMonths} onChange={(event) => setGrantMonths(event.target.value)}>
+                <option value="1">1 month</option>
+                <option value="2">2 months</option>
+                <option value="3">3 months</option>
+              </select>
+            </label>
+            <label>
+              Reason
+              <textarea
+                placeholder="Goodwill comp, onboarding issue, etc."
+                rows={3}
+                value={grantReason}
+                onChange={(event) => setGrantReason(event.target.value)}
+              />
+            </label>
+            <label>
+              Linked ticket (optional)
+              <input
+                placeholder="Ticket UUID"
+                type="text"
+                value={grantTicketId}
+                onChange={(event) => setGrantTicketId(event.target.value)}
+              />
+            </label>
+            <button disabled={isBusy || !grantReason.trim()} type="submit">
+              {isBusy ? 'Applying grant...' : 'Grant free months'}
+            </button>
+          </form>
+        ) : (
+          <p className="admin-empty" style={{ padding: '12px 0' }}>
+            Billing grants require an active Stripe subscription and non-complimentary billing.
+          </p>
+        )}
+      </section>
 
       <section className="admin-table-card" style={{ marginTop: 16 }}>
         <div className="admin-panel">

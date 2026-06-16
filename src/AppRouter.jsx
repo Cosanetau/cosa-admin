@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './lib/AuthContext';
 import AdminLayout from './layouts/AdminLayout';
 import LoginPage from './pages/LoginPage';
+import SignupsPage from './pages/SignupsPage';
 import TicketDetailPage from './pages/TicketDetailPage';
 import TicketsPage from './pages/TicketsPage';
 import WorkshopDetailPage from './pages/WorkshopDetailPage';
@@ -33,6 +34,7 @@ export default function AppRouter() {
         }
       >
         <Route element={<WorkshopsPage />} index />
+        <Route element={<SignupsPage />} path="signups" />
         <Route element={<TicketsPage />} path="tickets" />
         <Route element={<TicketDetailPage />} path="tickets/:ticketId" />
         <Route element={<WorkshopDetailPage />} path="workshops/:workshopId" />

@@ -173,6 +173,10 @@ export default function WorkshopsPage() {
             <span>Over user limit</span>
             <strong>{stats.overUserLimit}</strong>
           </div>
+          <div className="admin-stat-card">
+            <span>Stale activity</span>
+            <strong>{stats.staleActivity ?? 0}</strong>
+          </div>
         </div>
       ) : null}
 

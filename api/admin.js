@@ -1,5 +1,11 @@
 import Stripe from 'stripe';
 import { requireCosAdmin } from './shared/adminAuth.js';
+import { applyBillingGrant, listBillingGrants } from './shared/billingGrants.js';
+import {
+  getPendingSignupStats,
+  listPendingSignups,
+} from './shared/pendingSignups.js';
+import { notifyWorkshopTicketReply } from './shared/sendEmail.js';
 import {
   addAdminTicketReply,
   getAdminTicketDetail,
@@ -7,6 +13,7 @@ import {
   listAdminTickets,
   updateAdminTicket,
 } from './shared/supportTickets.js';
+import { addWorkshopNote, listWorkshopNotes } from './shared/workshopNotes.js';
 import {
   getAdminDashboardStats,
   getWorkshopOverview,
@@ -109,8 +116,12 @@ export default async function handler(request, response) {
       }
 
       const tickets = await listAdminTickets(auth.supabaseAdmin, { workshopId });
+      const [billingGrants, adminNotes] = await Promise.all([
+        listBillingGrants(auth.supabaseAdmin, workshopId),
+        listWorkshopNotes(auth.supabaseAdmin, workshopId),
+      ]);
 
-      return response.status(200).json({ workshop, tickets });
+      return response.status(200).json({ workshop, tickets, billingGrants, adminNotes });
     } catch (error) {
       return response.status(500).json({ error: error.message || 'Could not load workshop.' });
     }
@@ -190,6 +201,23 @@ export default async function handler(request, response) {
         isInternal: false,
       });
 
+      const submitterEmail =
+        result.ticket?.context?.submitterEmail ||
+        result.ticket?.context?.businessEmail ||
+        result.ticket?.workshop?.businessEmail ||
+        '';
+
+      try {
+        await notifyWorkshopTicketReply({
+          to: submitterEmail,
+          ticketNumber: result.ticket.ticketNumber,
+          subject: result.ticket.subject,
+          body,
+        });
+      } catch {
+        // Email failure should not block ticket replies.
+      }
+
       return response.status(200).json(result);
     } catch (error) {
       return response.status(500).json({ error: error.message || 'Could not reply to ticket.' });
@@ -251,8 +279,88 @@ export default async function handler(request, response) {
     }
   }
 
+  if (action === 'pending-signups') {
+    const auth = await requireCosAdmin(request);
+
+    if (auth.error) {
+      return response.status(auth.status).json({ error: auth.error });
+    }
+
+    const filter = getFilterValue(request, 'filter') || 'pending';
+
+    try {
+      const signups = await listPendingSignups(auth.supabaseAdmin, filter);
+      const stats = getPendingSignupStats(signups);
+
+      return response.status(200).json({ signups, stats });
+    } catch (error) {
+      return response.status(500).json({ error: error.message || 'Could not load pending signups.' });
+    }
+  }
+
+  if (action === 'apply-billing-grant') {
+    const auth = await requireCosAdmin(request);
+
+    if (auth.error) {
+      return response.status(auth.status).json({ error: auth.error });
+    }
+
+    const workshopId = getFilterValue(request, 'workshopId');
+    const months = request.body?.months;
+    const reason = request.body?.reason;
+    const supportTicketId = String(request.body?.supportTicketId || '').trim();
+
+    if (!workshopId) {
+      return response.status(400).json({ error: 'workshopId is required.' });
+    }
+
+    try {
+      const grant = await applyBillingGrant({
+        supabaseAdmin: auth.supabaseAdmin,
+        stripe: getStripeClient(),
+        workshopId,
+        months,
+        reason,
+        supportTicketId,
+        grantedByEmail: auth.user.email || '',
+      });
+
+      return response.status(200).json({ grant });
+    } catch (error) {
+      return response.status(500).json({ error: error.message || 'Could not apply billing grant.' });
+    }
+  }
+
+  if (action === 'add-workshop-note') {
+    const auth = await requireCosAdmin(request);
+
+    if (auth.error) {
+      return response.status(auth.status).json({ error: auth.error });
+    }
+
+    const workshopId = getFilterValue(request, 'workshopId');
+    const body = String(request.body?.body || '').trim();
+
+    if (!workshopId || !body) {
+      return response.status(400).json({ error: 'workshopId and body are required.' });
+    }
+
+    try {
+      const note = await addWorkshopNote({
+        supabaseAdmin: auth.supabaseAdmin,
+        workshopId,
+        authorEmail: auth.user.email || '',
+        body,
+      });
+
+      return response.status(200).json({ note });
+    } catch (error) {
+      return response.status(500).json({ error: error.message || 'Could not add workshop note.' });
+    }
+  }
+
   return response.status(400).json({
     error:
-      'Unknown action. Use me, workshops, workshop, tickets, ticket, reply-ticket, internal-note, or update-ticket.',
+      'Unknown action. Use me, workshops, workshop, tickets, ticket, reply-ticket, internal-note, update-ticket, pending-signups, apply-billing-grant, or add-workshop-note.',
   });
 }

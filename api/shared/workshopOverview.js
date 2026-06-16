@@ -76,6 +76,9 @@ function buildSettingsMap(settingsRows) {
   return map;
 }
 
+const STALE_ACTIVITY_DAYS = 14;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 function getWorkshopAlerts(workshop, staffSummary, settingsRow) {
   const alerts = [];
   const status = String(workshop.subscription_status || '').toLowerCase();
@@ -110,11 +113,30 @@ function getWorkshopAlerts(workshop, staffSummary, settingsRow) {
   const createdAt = workshop.created_at ? new Date(workshop.created_at) : null;
   if (createdAt) {
     const ageMs = Date.now() - createdAt.getTime();
-    if (ageMs >= 0 && ageMs <= 7 * 24 * 60 * 60 * 1000) {
+    if (ageMs >= 0 && ageMs <= 7 * DAY_MS) {
       alerts.push({
         type: 'signup',
         level: 'info',
         message: 'New signup in the last 7 days',
+      });
+    }
+  }
+
+  const lastSeenAt = workshop.last_seen_at ? new Date(workshop.last_seen_at) : null;
+  const activityReference = lastSeenAt || createdAt;
+
+  if (activityReference && createdAt) {
+    const accountAgeMs = Date.now() - createdAt.getTime();
+    const quietMs = Date.now() - activityReference.getTime();
+
+    if (accountAgeMs >= 7 * DAY_MS && quietMs >= STALE_ACTIVITY_DAYS * DAY_MS) {
+      const quietDays = Math.floor(quietMs / DAY_MS);
+      alerts.push({
+        type: 'activity',
+        level: 'warning',
+        message: lastSeenAt
+          ? `No activity for ${quietDays} days`
+          : 'No recorded activity yet',
       });
     }
   }
@@ -167,6 +189,7 @@ function mapWorkshopSummary(workshop, context) {
     name: workshop.name || settingsRow?.business_name || 'Unnamed workshop',
     slug: workshop.slug || '',
     createdAt: workshop.created_at || null,
+    lastSeenAt: workshop.last_seen_at || null,
     planKey: workshop.plan_key || '',
     subscriptionStatus: workshop.subscription_status || 'active',
     billingExempt: Boolean(workshop.billing_exempt),
@@ -273,7 +296,7 @@ export async function listWorkshopsOverview(supabaseAdmin) {
   const { data: workshops, error } = await supabaseAdmin
     .from('workshops')
     .select(
-      'id, name, slug, created_at, plan_key, stripe_customer_id, stripe_subscription_id, subscription_status, billing_exempt',
+      'id, name, slug, created_at, last_seen_at, plan_key, stripe_customer_id, stripe_subscription_id, subscription_status, billing_exempt',
     )
     .order('created_at', { ascending: false });
 
@@ -337,7 +360,7 @@ export async function getWorkshopOverview(supabaseAdmin, workshopId, stripe) {
   const { data: workshop, error } = await supabaseAdmin
     .from('workshops')
     .select(
-      'id, name, slug, created_at, plan_key, stripe_customer_id, stripe_subscription_id, subscription_status, billing_exempt',
+      'id, name, slug, created_at, last_seen_at, plan_key, stripe_customer_id, stripe_subscription_id, subscription_status, billing_exempt',
     )
     .eq('id', workshopId)
     .maybeSingle();
@@ -401,6 +424,9 @@ export async function getAdminDashboardStats(workshops) {
     }).length,
     overUserLimit: workshops.filter((workshop) =>
       workshop.alerts.some((alert) => alert.type === 'staff'),
+    ).length,
+    staleActivity: workshops.filter((workshop) =>
+      workshop.alerts.some((alert) => alert.type === 'activity'),
     ).length,
   };
 }
