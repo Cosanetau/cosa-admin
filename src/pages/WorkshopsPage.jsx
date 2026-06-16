@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchWorkshopsOverview } from '../utils/adminApi';
+
+const AUTO_REFRESH_MS = 60_000;
 
 function formatDate(value) {
   if (!value) {
@@ -11,6 +14,17 @@ function formatDate(value) {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+  });
+}
+
+function formatTime(value) {
+  if (!value) {
+    return '';
+  }
+
+  return new Date(value).toLocaleTimeString('en-AU', {
+    hour: 'numeric',
+    minute: '2-digit',
   });
 }
 
@@ -46,20 +60,51 @@ export default function WorkshopsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
+
+  const loadWorkshops = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setIsLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
+
+    setErrorMessage('');
+
+    try {
+      const result = await fetchWorkshopsOverview();
+      setWorkshops(result.workshops || []);
+      setStats(result.stats || null);
+      setLastUpdatedAt(new Date().toISOString());
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchWorkshopsOverview()
-      .then((result) => {
-        setWorkshops(result.workshops || []);
-        setStats(result.stats || null);
-      })
-      .catch((error) => {
-        setErrorMessage(error.message);
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  }, []);
+    void loadWorkshops();
+
+    const intervalId = window.setInterval(() => {
+      void loadWorkshops({ silent: true });
+    }, AUTO_REFRESH_MS);
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        void loadWorkshops({ silent: true });
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loadWorkshops]);
 
   const filteredWorkshops = useMemo(() => {
     const search = searchTerm.trim().toLowerCase();
@@ -88,8 +133,20 @@ export default function WorkshopsPage() {
         <div>
           <p className="admin-kicker">Workshops</p>
           <h1>All workshops</h1>
-          <span>Read-only overview of every COSA Core account.</span>
+          <span>
+            Live workshop accounts with billing, staff, or usage. Refreshes every minute
+            {lastUpdatedAt ? ` · updated ${formatTime(lastUpdatedAt)}` : ''}.
+          </span>
         </div>
+        <button
+          className="admin-secondary-button admin-refresh-button"
+          disabled={isRefreshing}
+          type="button"
+          onClick={() => loadWorkshops({ silent: true })}
+        >
+          <RefreshCw className={isRefreshing ? 'is-spinning' : ''} size={16} />
+          {isRefreshing ? 'Refreshing...' : 'Refresh'}
+        </button>
       </header>
 
       {errorMessage ? <div className="form-error">{errorMessage}</div> : null}
@@ -201,7 +258,7 @@ export default function WorkshopsPage() {
                           ))}
                         </div>
                       ) : (
-                        <span className="admin-badge is-active">Healthy</span>
+                        '—'
                       )}
                     </td>
                   </tr>

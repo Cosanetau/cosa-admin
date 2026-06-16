@@ -122,6 +122,33 @@ function getWorkshopAlerts(workshop, staffSummary, settingsRow) {
   return alerts;
 }
 
+export function shouldHideFromAdminOverview(workshop) {
+  if (workshop.slug === 'default') {
+    return true;
+  }
+
+  const staffCount = workshop.staff.billableCount + workshop.staff.technicianCount;
+  const usageCount =
+    workshop.usage.customers +
+    workshop.usage.bookings +
+    workshop.usage.invoices +
+    workshop.usage.vehicles;
+  const hasBilling =
+    workshop.stripeCustomerId || workshop.stripeSubscriptionId || workshop.planKey;
+
+  if (
+    staffCount > 0 ||
+    usageCount > 0 ||
+    hasBilling ||
+    workshop.primaryContact ||
+    workshop.billingExempt
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
 function mapWorkshopSummary(workshop, context) {
   const settingsRow = context.settingsMap[workshop.id] || null;
   const staffSummary = context.staffSummary[workshop.id] || {
@@ -257,7 +284,9 @@ export async function listWorkshopsOverview(supabaseAdmin) {
   const workshopIds = (workshops || []).map((workshop) => workshop.id);
   const context = await fetchWorkshopContext(supabaseAdmin, workshopIds);
 
-  return (workshops || []).map((workshop) => mapWorkshopSummary(workshop, context));
+  return (workshops || [])
+    .map((workshop) => mapWorkshopSummary(workshop, context))
+    .filter((workshop) => !shouldHideFromAdminOverview(workshop));
 }
 
 async function fetchStripeBilling(stripe, workshop) {
