@@ -22,6 +22,7 @@ function formatStatusLabel(status) {
 
 const filters = [
   { value: 'needs_reply', label: 'Needs COSA reply' },
+  { value: 'overdue', label: 'SLA overdue' },
   { value: 'open', label: 'Open' },
   { value: 'closed', label: 'Closed' },
   { value: 'all', label: 'All' },
@@ -107,6 +108,10 @@ export default function TicketsPage() {
             <strong>{stats.needsReply}</strong>
           </div>
           <div className="admin-stat-card">
+            <span>SLA overdue</span>
+            <strong>{stats.overdue ?? 0}</strong>
+          </div>
+          <div className="admin-stat-card">
             <span>Open</span>
             <strong>{stats.open}</strong>
           </div>
@@ -159,6 +164,11 @@ export default function TicketsPage() {
                       {ticket.needsCosaReply ? (
                         <span className="admin-badge is-warning" style={{ marginTop: 8 }}>
                           Needs reply
+                        </span>
+                      ) : null}
+                      {ticket.slaOverdue ? (
+                        <span className="admin-badge is-critical" style={{ marginTop: 8, marginLeft: ticket.needsCosaReply ? 6 : 0 }}>
+                          SLA overdue ({ticket.slaHoursWaiting}h)
                         </span>
                       ) : null}
                     </td>

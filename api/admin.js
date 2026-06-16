@@ -155,6 +155,7 @@ export default async function handler(request, response) {
         needsReply: filter === 'needs_reply',
         openOnly: filter === 'open',
         closedOnly: filter === 'closed',
+        overdueOnly: filter === 'overdue',
       });
       const stats = getAdminTicketStats(tickets);
 

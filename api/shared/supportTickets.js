@@ -1,3 +1,8 @@
+import {
+  getTicketSlaMeta,
+  loadMessageAttachmentsMap,
+} from './supportTicketAttachments.js';
+
 export const SUPPORT_TICKET_STATUSES = [
   'open',
   'in_progress',
@@ -40,7 +45,7 @@ export function mapSupportTicketRow(row, extras = {}) {
   };
 }
 
-export function mapSupportMessageRow(row) {
+export function mapSupportMessageRow(row, extras = {}) {
   if (!row) {
     return null;
   }
@@ -55,6 +60,18 @@ export function mapSupportMessageRow(row) {
     body: row.body,
     isInternal: Boolean(row.is_internal),
     createdAt: row.created_at,
+    ...extras,
+  };
+}
+
+function mapTicketWithSla(row, extras = {}) {
+  const ticket = mapSupportTicketRow(row, extras);
+  const sla = getTicketSlaMeta(row);
+
+  return {
+    ...ticket,
+    slaOverdue: sla.slaOverdue,
+    slaHoursWaiting: sla.slaHoursWaiting,
   };
 }
 
@@ -131,11 +148,19 @@ export async function listAdminTickets(supabaseAdmin, filters = {}) {
     }),
   );
 
-  return tickets.map((row) =>
-    mapSupportTicketRow(row, {
-      workshop: workshopMap[row.workshop_id] || null,
-    }),
-  );
+  return tickets
+    .map((row) =>
+      mapTicketWithSla(row, {
+        workshop: workshopMap[row.workshop_id] || null,
+      }),
+    )
+    .filter((ticket) => {
+      if (!filters.overdueOnly) {
+        return true;
+      }
+
+      return ticket.slaOverdue;
+    });
 }
 
 export async function getAdminTicketDetail(supabaseAdmin, ticketId) {
@@ -166,9 +191,16 @@ export async function getAdminTicketDetail(supabaseAdmin, ticketId) {
     throw new Error(messagesResult.error.message);
   }
 
+  const messageIds = (messagesResult.data || []).map((message) => message.id);
+  const attachmentMap = await loadMessageAttachmentsMap(supabaseAdmin, messageIds);
+
   return {
-    ticket: mapSupportTicketRow(ticket, { workshop }),
-    messages: (messagesResult.data || []).map(mapSupportMessageRow),
+    ticket: mapTicketWithSla(ticket, { workshop }),
+    messages: (messagesResult.data || []).map((message) =>
+      mapSupportMessageRow(message, {
+        attachments: attachmentMap[message.id] || [],
+      }),
+    ),
   };
 }
 
@@ -222,6 +254,7 @@ export async function addAdminTicketReply({
   } else {
     ticketUpdate.last_cosa_reply_at = now;
     ticketUpdate.needs_cosa_reply = false;
+    ticketUpdate.sla_reminded_at = null;
     ticketUpdate.status =
       ticket.status === 'open' ||
       ticket.status === 'in_progress' ||
@@ -287,6 +320,7 @@ export function getAdminTicketStats(tickets) {
   return {
     total: tickets.length,
     needsReply: tickets.filter((ticket) => ticket.needsCosaReply).length,
+    overdue: tickets.filter((ticket) => ticket.slaOverdue).length,
     open: tickets.filter((ticket) => !['closed', 'resolved'].includes(ticket.status)).length,
   };
 }

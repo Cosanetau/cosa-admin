@@ -38,6 +38,50 @@ function formatStatusLabel(status) {
   return String(status || 'open').replaceAll('_', ' ');
 }
 
+function formatAttachmentSize(bytes) {
+  const size = Number(bytes || 0);
+  if (size < 1024) {
+    return `${size} B`;
+  }
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} KB`;
+  }
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function TicketAttachmentList({ attachments }) {
+  if (!attachments?.length) {
+    return null;
+  }
+
+  return (
+    <div className="admin-attachment-list">
+      {attachments.map((attachment) => {
+        const isImage = String(attachment.mimeType || '').startsWith('image/');
+
+        return (
+          <a
+            className="admin-attachment-chip"
+            href={attachment.url}
+            key={attachment.id}
+            rel="noreferrer"
+            target="_blank"
+          >
+            {isImage && attachment.url ? (
+              <img alt={attachment.fileName} src={attachment.url} />
+            ) : null}
+            <span>
+              {attachment.fileName}
+              <br />
+              {formatAttachmentSize(attachment.sizeBytes)}
+            </span>
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
 function isTicketClosed(status) {
   return ['closed', 'resolved'].includes(String(status || '').toLowerCase());
 }
@@ -321,6 +365,11 @@ export default function TicketDetailPage() {
             <span className={`admin-badge ${ticket.needsCosaReply ? 'is-warning' : 'is-active'}`}>
               {ticket.needsCosaReply ? 'Needs COSA reply' : 'Awaiting customer'}
             </span>
+            {ticket.slaOverdue ? (
+              <span className="admin-badge is-critical">
+                SLA overdue ({ticket.slaHoursWaiting}h)
+              </span>
+            ) : null}
             <span
               className={`admin-badge ${
                 ticketClosed ? 'is-muted' : ticket.status === 'in_progress' ? 'is-warning' : 'is-active'
@@ -348,6 +397,7 @@ export default function TicketDetailPage() {
                     <span className="admin-badge is-warning">Internal note</span>
                   ) : null}
                   <p style={{ whiteSpace: 'pre-wrap' }}>{message.body}</p>
+                  <TicketAttachmentList attachments={message.attachments} />
                 </article>
               ))
             )}
@@ -446,6 +496,12 @@ export default function TicketDetailPage() {
               <dt>Updated</dt>
               <dd>{formatDateTime(ticket.updatedAt)}</dd>
             </div>
+            {ticket.needsCosaReply && ticket.slaHoursWaiting > 0 ? (
+              <div>
+                <dt>Waiting on COSA</dt>
+                <dd>{ticket.slaHoursWaiting}h since last customer reply</dd>
+              </div>
+            ) : null}
           </dl>
 
           <div className="admin-form-block">
