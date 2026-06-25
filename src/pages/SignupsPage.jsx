@@ -187,7 +187,7 @@ export default function SignupsPage() {
           <div className="admin-empty">No signups match this view.</div>
         ) : (
           <div className="admin-table-wrap">
-            <table className="admin-table">
+            <table className="admin-table is-stackable">
               <thead>
                 <tr>
                   <th>Contact</th>
@@ -201,7 +201,7 @@ export default function SignupsPage() {
               <tbody>
                 {filteredSignups.map((signup) => (
                   <tr key={signup.id}>
-                    <td>
+                    <td data-label="Contact">
                       <strong>
                         {[signup.firstName, signup.lastName].filter(Boolean).join(' ') || '—'}
                       </strong>
@@ -209,8 +209,8 @@ export default function SignupsPage() {
                         {signup.email || 'No email'}
                       </div>
                     </td>
-                    <td>{signup.businessName || '—'}</td>
-                    <td>
+                    <td data-label="Business">{signup.businessName || '—'}</td>
+                    <td data-label="Plan">
                       {formatPlanLabel(signup)}
                       {signup.userLimit ? (
                         <div style={{ color: '#6b7280', fontSize: '0.84rem', marginTop: 4 }}>
@@ -218,7 +218,7 @@ export default function SignupsPage() {
                         </div>
                       ) : null}
                     </td>
-                    <td>
+                    <td data-label="Status">
                       <span
                         className={`admin-badge ${
                           signup.status === 'pending' ? 'is-warning' : 'is-active'
@@ -227,8 +227,8 @@ export default function SignupsPage() {
                         {signup.status}
                       </span>
                     </td>
-                    <td>{formatDateTime(signup.createdAt)}</td>
-                    <td>
+                    <td data-label="Started">{formatDateTime(signup.createdAt)}</td>
+                    <td className="admin-table-actions-cell" data-label="Actions">
                       <button
                         className="admin-danger-button"
                         disabled={deletingId === signup.id}

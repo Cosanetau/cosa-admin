@@ -199,7 +199,7 @@ export default function WorkshopsPage() {
           <div className="admin-empty">No workshops match your search.</div>
         ) : (
           <div className="admin-table-wrap">
-            <table className="admin-table">
+            <table className="admin-table is-stackable">
               <thead>
                 <tr>
                   <th>Workshop</th>
@@ -214,7 +214,7 @@ export default function WorkshopsPage() {
               <tbody>
                 {filteredWorkshops.map((workshop) => (
                   <tr key={workshop.id}>
-                    <td>
+                    <td data-label="Workshop">
                       <Link className="admin-table-link" to={`/workshops/${workshop.id}`}>
                         {workshop.name}
                       </Link>
@@ -222,8 +222,8 @@ export default function WorkshopsPage() {
                         {workshop.primaryContact || 'No contact'} · joined {formatDate(workshop.createdAt)}
                       </div>
                     </td>
-                    <td>{workshop.planKey || '—'}</td>
-                    <td>
+                    <td data-label="Plan">{workshop.planKey || '—'}</td>
+                    <td data-label="Billing">
                       <span
                         className={`admin-badge ${getStatusBadgeClass(
                           workshop.billingExempt ? 'complimentary' : workshop.subscriptionStatus,
@@ -232,19 +232,19 @@ export default function WorkshopsPage() {
                         {formatStatusLabel(workshop.subscriptionStatus, workshop.billingExempt)}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Staff">
                       {workshop.staff.billableCount}/{workshop.staff.userLimit}
                       <div style={{ color: '#6b7280', fontSize: '0.84rem', marginTop: 4 }}>
                         {workshop.staff.technicianCount} technicians
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Usage">
                       {workshop.usage.customers} customers
                       <div style={{ color: '#6b7280', fontSize: '0.84rem', marginTop: 4 }}>
                         {workshop.usage.bookings} bookings · {workshop.usage.invoices} invoices
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Alerts">
                       {workshop.alerts.length ? (
                         <div className="admin-alert-list">
                           {workshop.alerts.map((alert) => (
@@ -266,7 +266,7 @@ export default function WorkshopsPage() {
                         '—'
                       )}
                     </td>
-                    <td>
+                    <td className="admin-table-actions-cell" data-label="Actions">
                       {!workshop.billingExempt && workshop.stripeSubscriptionId ? (
                         <Link
                           className="admin-table-link"

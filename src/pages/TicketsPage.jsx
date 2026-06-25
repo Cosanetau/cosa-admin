@@ -140,7 +140,7 @@ export default function TicketsPage() {
           <div className="admin-empty">No tickets in this view.</div>
         ) : (
           <div className="admin-table-wrap">
-            <table className="admin-table">
+            <table className="admin-table is-stackable">
               <thead>
                 <tr>
                   <th>Ticket</th>
@@ -154,7 +154,7 @@ export default function TicketsPage() {
               <tbody>
                 {filteredTickets.map((ticket) => (
                   <tr key={ticket.id}>
-                    <td>
+                    <td data-label="Ticket">
                       <Link className="admin-table-link" to={`/tickets/${ticket.id}`}>
                         {ticket.ticketNumber}
                       </Link>
@@ -172,15 +172,15 @@ export default function TicketsPage() {
                         </span>
                       ) : null}
                     </td>
-                    <td>
+                    <td data-label="Workshop">
                       <Link className="admin-table-link" to={`/workshops/${ticket.workshopId}`}>
                         {ticket.context?.businessName || ticket.workshop?.name || 'Workshop'}
                       </Link>
                     </td>
-                    <td>{formatStatusLabel(ticket.status)}</td>
-                    <td>{ticket.category}</td>
-                    <td>{formatDateTime(ticket.updatedAt)}</td>
-                    <td>
+                    <td data-label="Status">{formatStatusLabel(ticket.status)}</td>
+                    <td data-label="Category">{ticket.category}</td>
+                    <td data-label="Updated">{formatDateTime(ticket.updatedAt)}</td>
+                    <td className="admin-table-actions-cell" data-label="Actions">
                       <div className="admin-table-actions">
                         <Link className="admin-table-link" to={`/tickets/${ticket.id}`}>
                           Reply
