@@ -1,4 +1,4 @@
-import { Gift, LayoutDashboard, LifeBuoy, LogOut, UserPlus } from 'lucide-react';
+import { CalendarDays, Gift, LayoutDashboard, LifeBuoy, LogOut, UserPlus } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 
@@ -28,6 +28,13 @@ export default function AdminLayout() {
           >
             <UserPlus size={18} />
             Signups
+          </NavLink>
+          <NavLink
+            className={({ isActive }) => `admin-nav-link${isActive ? ' is-active' : ''}`}
+            to="/calendar"
+          >
+            <CalendarDays size={18} />
+            Calendar
           </NavLink>
           <NavLink
             className={({ isActive }) => `admin-nav-link${isActive ? ' is-active' : ''}`}

@@ -32,6 +32,14 @@ async function adminRequest(action, options = {}) {
     params.set('signupId', options.signupId);
   }
 
+  if (options.startAt) {
+    params.set('startAt', options.startAt);
+  }
+
+  if (options.endAt) {
+    params.set('endAt', options.endAt);
+  }
+
   const method = options.method || (options.body ? 'POST' : 'GET');
 
   const response = await fetch(`/api/admin?${params.toString()}`, {
@@ -167,5 +175,44 @@ export function addWorkshopNote(workshopId, body) {
     method: 'POST',
     workshopId,
     body: { body },
+  });
+}
+
+export function fetchSalesCalendar({ startAt, endAt }) {
+  return adminRequest('sales-calendar', { startAt, endAt });
+}
+
+export function saveSalesAppointment(payload) {
+  return adminRequest('save-sales-appointment', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export function deleteSalesAppointment(appointmentId) {
+  return adminRequest('delete-sales-appointment', {
+    method: 'POST',
+    body: { appointmentId },
+  });
+}
+
+export function saveSalesFollowUp(payload) {
+  return adminRequest('save-sales-follow-up', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export function completeSalesFollowUp(followUpId) {
+  return adminRequest('complete-sales-follow-up', {
+    method: 'POST',
+    body: { followUpId },
+  });
+}
+
+export function deleteSalesFollowUp(followUpId) {
+  return adminRequest('delete-sales-follow-up', {
+    method: 'POST',
+    body: { followUpId },
   });
 }

@@ -6,6 +6,16 @@ import {
   getPendingSignupStats,
   listPendingSignups,
 } from './shared/pendingSignups.js';
+import {
+  completeSalesFollowUp,
+  deleteSalesAppointment,
+  deleteSalesFollowUp,
+  getSalesCalendarStats,
+  listSalesAppointments,
+  listSalesFollowUps,
+  saveSalesAppointment,
+  saveSalesFollowUp,
+} from './shared/salesCalendar.js';
 import { notifyWorkshopTicketReply } from './shared/sendEmail.js';
 import {
   addAdminTicketReply,
@@ -421,8 +431,139 @@ export default async function handler(request, response) {
     }
   }
 
+  if (action === 'sales-calendar') {
+    const auth = await requireCosAdmin(request);
+
+    if (auth.error) {
+      return response.status(auth.status).json({ error: auth.error });
+    }
+
+    const startAt = getFilterValue(request, 'startAt');
+    const endAt = getFilterValue(request, 'endAt');
+
+    try {
+      const [appointments, followUps] = await Promise.all([
+        listSalesAppointments(auth.supabaseAdmin, { startAt, endAt }),
+        listSalesFollowUps(auth.supabaseAdmin, { status: 'pending' }),
+      ]);
+
+      return response.status(200).json({
+        appointments,
+        followUps,
+        stats: getSalesCalendarStats(appointments, followUps),
+      });
+    } catch (error) {
+      return response.status(500).json({
+        error: error.message || 'Could not load sales calendar.',
+      });
+    }
+  }
+
+  if (action === 'save-sales-appointment') {
+    const auth = await requireCosAdmin(request);
+
+    if (auth.error) {
+      return response.status(auth.status).json({ error: auth.error });
+    }
+
+    try {
+      const appointment = await saveSalesAppointment({
+        supabaseAdmin: auth.supabaseAdmin,
+        appointmentId: String(request.body?.appointmentId || '').trim(),
+        payload: request.body || {},
+        createdByEmail: auth.user.email || '',
+      });
+
+      return response.status(200).json({ appointment });
+    } catch (error) {
+      return response.status(400).json({
+        error: error.message || 'Could not save appointment.',
+      });
+    }
+  }
+
+  if (action === 'delete-sales-appointment') {
+    const auth = await requireCosAdmin(request);
+
+    if (auth.error) {
+      return response.status(auth.status).json({ error: auth.error });
+    }
+
+    const appointmentId = String(request.body?.appointmentId || '').trim();
+
+    try {
+      await deleteSalesAppointment(auth.supabaseAdmin, appointmentId);
+      return response.status(200).json({ success: true });
+    } catch (error) {
+      return response.status(400).json({
+        error: error.message || 'Could not delete appointment.',
+      });
+    }
+  }
+
+  if (action === 'save-sales-follow-up') {
+    const auth = await requireCosAdmin(request);
+
+    if (auth.error) {
+      return response.status(auth.status).json({ error: auth.error });
+    }
+
+    try {
+      const followUp = await saveSalesFollowUp({
+        supabaseAdmin: auth.supabaseAdmin,
+        followUpId: String(request.body?.followUpId || '').trim(),
+        payload: request.body || {},
+        createdByEmail: auth.user.email || '',
+      });
+
+      return response.status(200).json({ followUp });
+    } catch (error) {
+      return response.status(400).json({
+        error: error.message || 'Could not save follow-up.',
+      });
+    }
+  }
+
+  if (action === 'complete-sales-follow-up') {
+    const auth = await requireCosAdmin(request);
+
+    if (auth.error) {
+      return response.status(auth.status).json({ error: auth.error });
+    }
+
+    const followUpId = String(request.body?.followUpId || '').trim();
+
+    try {
+      const followUp = await completeSalesFollowUp(auth.supabaseAdmin, followUpId);
+      return response.status(200).json({ followUp });
+    } catch (error) {
+      return response.status(400).json({
+        error: error.message || 'Could not complete follow-up.',
+      });
+    }
+  }
+
+  if (action === 'delete-sales-follow-up') {
+    const auth = await requireCosAdmin(request);
+
+    if (auth.error) {
+      return response.status(auth.status).json({ error: auth.error });
+    }
+
+    const followUpId = String(request.body?.followUpId || '').trim();
+
+    try {
+      await deleteSalesFollowUp(auth.supabaseAdmin, followUpId);
+      return response.status(200).json({ success: true });
+    } catch (error) {
+      return response.status(400).json({
+        error: error.message || 'Could not delete follow-up.',
+      });
+    }
+  }
+
   return response.status(400).json({
     error:
-      'Unknown action. Use me, workshops, workshop, tickets, ticket, reply-ticket, internal-note, update-ticket, pending-signups, delete-pending-signup, billing-grants, apply-billing-grant, or add-workshop-note.',
+      'Unknown action. Use me, workshops, workshop, tickets, ticket, reply-ticket, internal-note, update-ticket, pending-signups, delete-pending-signup, billing-grants, apply-billing-grant, add-workshop-note, sales-calendar, save-sales-appointment, delete-sales-appointment, save-sales-follow-up, complete-sales-follow-up, or delete-sales-follow-up.',
   });
 }
