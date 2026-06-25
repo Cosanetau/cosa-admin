@@ -637,6 +637,185 @@
     gap: 4px;
   }
 
+  .admin-calendar-page-header .admin-form-actions {
+    display: none;
+  }
+
+  .admin-calendar-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .admin-calendar-stats .admin-stat-card {
+    padding: 10px 8px;
+  }
+
+  .admin-calendar-stats .admin-stat-card span {
+    font-size: 0.68rem;
+  }
+
+  .admin-calendar-stats .admin-stat-card strong {
+    font-size: 1.1rem;
+  }
+
+  .admin-calendar-mobile-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .admin-calendar-mobile-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #374151;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .admin-calendar-mobile-tab.is-active {
+    border-color: #111827;
+    background: #111827;
+    color: #ffffff;
+  }
+
+  .admin-calendar-mobile-tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+
+  .admin-calendar-mobile-tab.is-active .admin-calendar-mobile-tab-badge {
+    background: #fb923c;
+    color: #111827;
+  }
+
+  .admin-calendar-layout {
+    gap: 12px;
+  }
+
+  .admin-calendar-panel-mobile-hidden {
+    display: none;
+  }
+
+  .admin-calendar-side {
+    display: none;
+  }
+
+  .admin-calendar-side.admin-calendar-side-mobile-active {
+    display: block;
+  }
+
+  .admin-calendar-side.admin-calendar-side-mobile-active .admin-calendar-day-section {
+    display: none;
+  }
+
+  .admin-calendar-toolbar-desktop {
+    display: none;
+  }
+
+  .admin-calendar-toolbar-mobile {
+    display: flex;
+  }
+
+  .admin-calendar-month-grid {
+    display: none;
+  }
+
+  .admin-calendar-week-strip {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .admin-calendar-week-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 64px;
+    padding: 8px 4px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #ffffff;
+    cursor: pointer;
+  }
+
+  .admin-calendar-week-day.is-selected {
+    border-color: #111827;
+    background: #111827;
+    color: #ffffff;
+  }
+
+  .admin-calendar-week-day.is-today:not(.is-selected) {
+    border-color: #fb923c;
+  }
+
+  .admin-calendar-week-day-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    opacity: 0.8;
+  }
+
+  .admin-calendar-week-day-number {
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .admin-calendar-week-day-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: #fb923c;
+  }
+
+  .admin-calendar-week-day.is-selected .admin-calendar-week-day-dot {
+    background: #ffffff;
+  }
+
+  .admin-calendar-mobile-agenda {
+    display: block;
+  }
+
+  .admin-calendar-mobile-agenda-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .admin-calendar-mobile-agenda-title {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.35;
+  }
+
+  .admin-calendar-mobile-agenda-header .admin-secondary-button {
+    flex-shrink: 0;
+    min-height: 40px;
+  }
+
   .admin-calendar-side-header {
     flex-direction: column;
     align-items: stretch;
@@ -649,6 +828,14 @@
 
   .admin-calendar-item {
     flex-direction: column;
+  }
+
+  .admin-calendar-item-actions {
+    width: 100%;
+  }
+
+  .admin-calendar-item-actions button {
+    flex: 1 1 auto;
   }
 
   .admin-calendar-item .admin-table-actions {
@@ -1179,6 +1366,91 @@
 
 .admin-calendar-item strong {
   display: block;
+}
+
+.admin-calendar-toolbar-desktop {
+  display: flex;
+}
+
+.admin-calendar-toolbar-mobile {
+  display: none;
+}
+
+.admin-calendar-toolbar-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.admin-calendar-today-button {
+  padding: 4px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-calendar-week-strip {
+  display: none;
+}
+
+.admin-calendar-mobile-tabs {
+  display: none;
+}
+
+.admin-calendar-mobile-agenda {
+  display: none;
+}
+
+.admin-calendar-phone-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: #ea580c;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.admin-calendar-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-calendar-item-actions button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-calendar-item-actions .admin-danger-text {
+  border-color: #fecaca;
+  background: #fff7f7;
+  color: #b91c1c;
+}
+
+.admin-calendar-page-header .admin-calendar-page-intro {
+  display: block;
+  color: #6b7280;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.admin-calendar-page-actions {
+  flex-wrap: wrap;
 }
 
 .admin-form-grid {

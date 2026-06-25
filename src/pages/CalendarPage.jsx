@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronLeft, ChevronRight, Phone, Plus, Trash2 } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Phone, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   completeSalesFollowUp,
@@ -106,6 +106,28 @@ function buildMonthGrid(year, month) {
   return days;
 }
 
+function buildWeekDays(anchorDate) {
+  const anchor = new Date(anchorDate);
+  const monday = new Date(anchor);
+  monday.setDate(anchor.getDate() - ((anchor.getDay() + 6) % 7));
+  monday.setHours(0, 0, 0, 0);
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + index);
+    return date;
+  });
+}
+
+function formatDayChip(date) {
+  return date.toLocaleDateString('en-AU', { weekday: 'short' });
+}
+
+function formatPhoneHref(phone) {
+  const digits = String(phone || '').replace(/[^\d+]/g, '');
+  return digits ? `tel:${digits}` : '';
+}
+
 function isSameDay(left, right) {
   return toDateKey(left) === toDateKey(right);
 }
@@ -154,11 +176,14 @@ export default function CalendarPage() {
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [mobilePanel, setMobilePanel] = useState('bookings');
 
   const monthDays = useMemo(
     () => buildMonthGrid(viewYear, viewMonth),
     [viewMonth, viewYear],
   );
+
+  const weekDays = useMemo(() => buildWeekDays(selectedDate), [selectedDate]);
 
   const appointmentsByDay = useMemo(() => {
     const map = new Map();
@@ -223,6 +248,21 @@ export default function CalendarPage() {
     const next = new Date(viewYear, viewMonth + delta, 1);
     setViewYear(next.getFullYear());
     setViewMonth(next.getMonth());
+  }
+
+  function shiftWeek(delta) {
+    const next = new Date(selectedDate);
+    next.setDate(next.getDate() + delta * 7);
+    setSelectedDate(next);
+    setViewYear(next.getFullYear());
+    setViewMonth(next.getMonth());
+  }
+
+  function goToToday() {
+    const now = new Date();
+    setSelectedDate(now);
+    setViewYear(now.getFullYear());
+    setViewMonth(now.getMonth());
   }
 
   function openNewAppointment(date = selectedDate) {
@@ -362,13 +402,15 @@ export default function CalendarPage() {
 
   return (
     <div className="admin-calendar-page">
-      <header className="admin-page-header">
+      <header className="admin-page-header admin-calendar-page-header">
         <div>
           <p className="admin-kicker">Sales</p>
           <h1>Calendar & follow-ups</h1>
-          <span>Book demos and calls, then track who to chase.</span>
+          <span className="admin-calendar-page-intro">
+            Book demos and calls, then track who to chase.
+          </span>
         </div>
-        <div className="admin-form-actions">
+        <div className="admin-form-actions admin-calendar-page-actions">
           <button className="admin-secondary-button" type="button" onClick={() => openNewFollowUp()}>
             <Plus size={16} />
             Add follow-up
@@ -382,7 +424,7 @@ export default function CalendarPage() {
 
       {errorMessage ? <div className="admin-error-banner">{errorMessage}</div> : null}
 
-      <div className="admin-stats-grid">
+      <div className="admin-stats-grid admin-calendar-stats">
         <div className="admin-stat-card">
           <span>Bookings this week</span>
           <strong>{stats?.appointmentsThisWeek ?? '—'}</strong>
@@ -397,114 +439,271 @@ export default function CalendarPage() {
         </div>
       </div>
 
+      <div className="admin-calendar-mobile-tabs">
+        <button
+          className={`admin-calendar-mobile-tab${mobilePanel === 'bookings' ? ' is-active' : ''}`}
+          type="button"
+          onClick={() => setMobilePanel('bookings')}
+        >
+          Bookings
+        </button>
+        <button
+          className={`admin-calendar-mobile-tab${mobilePanel === 'followups' ? ' is-active' : ''}`}
+          type="button"
+          onClick={() => setMobilePanel('followups')}
+        >
+          Follow-ups
+          {stats?.overdueFollowUps ? (
+            <span className="admin-calendar-mobile-tab-badge">{stats.overdueFollowUps}</span>
+          ) : null}
+        </button>
+      </div>
+
       <div className="admin-calendar-layout">
-        <section className="admin-panel admin-calendar-panel">
-          <div className="admin-calendar-toolbar">
-            <button className="admin-icon-button" type="button" onClick={() => shiftMonth(-1)}>
+        <section
+          className={`admin-panel admin-calendar-panel${
+            mobilePanel === 'followups' ? ' admin-calendar-panel-mobile-hidden' : ''
+          }`}
+        >
+          <div className="admin-calendar-toolbar admin-calendar-toolbar-desktop">
+            <button
+              aria-label="Previous month"
+              className="admin-icon-button"
+              type="button"
+              onClick={() => shiftMonth(-1)}
+            >
               <ChevronLeft size={18} />
             </button>
             <h2>{monthLabel}</h2>
-            <button className="admin-icon-button" type="button" onClick={() => shiftMonth(1)}>
+            <button
+              aria-label="Next month"
+              className="admin-icon-button"
+              type="button"
+              onClick={() => shiftMonth(1)}
+            >
               <ChevronRight size={18} />
             </button>
           </div>
 
-          <div className="admin-calendar-weekdays">
-            {WEEKDAY_LABELS.map((label) => (
-              <span key={label}>{label}</span>
-            ))}
+          <div className="admin-calendar-toolbar admin-calendar-toolbar-mobile">
+            <button
+              aria-label="Previous week"
+              className="admin-icon-button"
+              type="button"
+              onClick={() => shiftWeek(-1)}
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <div className="admin-calendar-toolbar-center">
+              <h2>{monthLabel}</h2>
+              <button className="admin-calendar-today-button" type="button" onClick={goToToday}>
+                Today
+              </button>
+            </div>
+            <button
+              aria-label="Next week"
+              className="admin-icon-button"
+              type="button"
+              onClick={() => shiftWeek(1)}
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
 
-          <div className="admin-calendar-grid">
-            {monthDays.map((date) => {
+          <div className="admin-calendar-week-strip">
+            {weekDays.map((date) => {
               const key = toDateKey(date);
               const dayAppointments = appointmentsByDay.get(key) || [];
-              const inMonth = date.getMonth() === viewMonth;
               const isSelected = isSameDay(date, selectedDate);
               const isToday = isSameDay(date, today);
 
               return (
                 <button
-                  key={key}
+                  key={`week-${key}`}
                   className={[
-                    'admin-calendar-day',
-                    inMonth ? '' : 'is-outside',
+                    'admin-calendar-week-day',
                     isSelected ? 'is-selected' : '',
                     isToday ? 'is-today' : '',
+                    dayAppointments.length > 0 ? 'has-bookings' : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
                   type="button"
-                  onClick={() => setSelectedDate(date)}
-                  onDoubleClick={() => openNewAppointment(date)}
+                  onClick={() => {
+                    setSelectedDate(date);
+                    setViewYear(date.getFullYear());
+                    setViewMonth(date.getMonth());
+                  }}
                 >
-                  <span className="admin-calendar-day-number">{date.getDate()}</span>
+                  <span className="admin-calendar-week-day-label">{formatDayChip(date)}</span>
+                  <span className="admin-calendar-week-day-number">{date.getDate()}</span>
                   {dayAppointments.length > 0 ? (
-                    <span className="admin-calendar-day-count">
-                      {dayAppointments.length} booking{dayAppointments.length === 1 ? '' : 's'}
-                    </span>
+                    <span className="admin-calendar-week-day-dot" aria-hidden="true" />
                   ) : null}
                 </button>
               );
             })}
           </div>
-        </section>
 
-        <section className="admin-panel admin-calendar-side">
-          <div className="admin-calendar-side-header">
-            <h2>
-              <CalendarDays size={18} />
-              {selectedDate.toLocaleDateString('en-AU', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-              })}
-            </h2>
-            <button className="admin-secondary-button" type="button" onClick={() => openNewAppointment()}>
-              Add booking
-            </button>
-          </div>
-
-          {isLoading ? (
-            <p className="admin-muted">Loading...</p>
-          ) : selectedDayAppointments.length === 0 ? (
-            <p className="admin-muted">No bookings on this day.</p>
-          ) : (
-            <div className="admin-calendar-list">
-              {selectedDayAppointments.map((appointment) => (
-                <article className="admin-calendar-item" key={appointment.id}>
-                  <div>
-                    <strong>{appointment.businessName || appointment.title}</strong>
-                    <p>
-                      {formatShortTime(appointment.startsAt)} ·{' '}
-                      {APPOINTMENT_TYPES.find((entry) => entry.value === appointment.appointmentType)
-                        ?.label || 'Booking'}
-                    </p>
-                    {appointment.contactName ? <p>{appointment.contactName}</p> : null}
-                    {appointment.contactPhone ? (
-                      <p>
-                        <Phone size={14} /> {appointment.contactPhone}
-                      </p>
-                    ) : null}
-                    {appointment.notes ? <p className="admin-muted">{appointment.notes}</p> : null}
-                  </div>
-                  <div className="admin-table-actions">
-                    <button type="button" onClick={() => openEditAppointment(appointment)}>
-                      Edit
-                    </button>
-                    <button
-                      className="admin-danger-text"
-                      type="button"
-                      onClick={() => handleDeleteAppointment(appointment.id)}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </article>
+          <div className="admin-calendar-month-grid">
+            <div className="admin-calendar-weekdays">
+              {WEEKDAY_LABELS.map((label) => (
+                <span key={label}>{label}</span>
               ))}
             </div>
-          )}
 
+            <div className="admin-calendar-grid">
+              {monthDays.map((date) => {
+                const key = toDateKey(date);
+                const dayAppointments = appointmentsByDay.get(key) || [];
+                const inMonth = date.getMonth() === viewMonth;
+                const isSelected = isSameDay(date, selectedDate);
+                const isToday = isSameDay(date, today);
+
+                return (
+                  <button
+                    key={key}
+                    className={[
+                      'admin-calendar-day',
+                      inMonth ? '' : 'is-outside',
+                      isSelected ? 'is-selected' : '',
+                      isToday ? 'is-today' : '',
+                      dayAppointments.length > 0 ? 'has-bookings' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    type="button"
+                    onClick={() => setSelectedDate(date)}
+                    onDoubleClick={() => openNewAppointment(date)}
+                  >
+                    <span className="admin-calendar-day-number">{date.getDate()}</span>
+                    {dayAppointments.length > 0 ? (
+                      <span className="admin-calendar-day-count">
+                        {dayAppointments.length} booking{dayAppointments.length === 1 ? '' : 's'}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="admin-calendar-mobile-agenda">
+            <div className="admin-calendar-mobile-agenda-header">
+              <h3 className="admin-calendar-mobile-agenda-title">
+                {selectedDate.toLocaleDateString('en-AU', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                })}
+              </h3>
+              <button className="admin-secondary-button" type="button" onClick={() => openNewAppointment()}>
+                Add booking
+              </button>
+            </div>
+            {isLoading ? (
+              <p className="admin-muted">Loading...</p>
+            ) : selectedDayAppointments.length === 0 ? (
+              <p className="admin-muted">No bookings on this day. Tap a day above or add one.</p>
+            ) : (
+              <div className="admin-calendar-list">
+                {selectedDayAppointments.map((appointment) => (
+                  <article className="admin-calendar-item" key={`mobile-${appointment.id}`}>
+                    <div>
+                      <strong>{appointment.businessName || appointment.title}</strong>
+                      <p>
+                        {formatShortTime(appointment.startsAt)} ·{' '}
+                        {APPOINTMENT_TYPES.find((entry) => entry.value === appointment.appointmentType)
+                          ?.label || 'Booking'}
+                      </p>
+                      {appointment.contactName ? <p>{appointment.contactName}</p> : null}
+                      {appointment.contactPhone ? (
+                        <a className="admin-calendar-phone-link" href={formatPhoneHref(appointment.contactPhone)}>
+                          <Phone size={14} /> {appointment.contactPhone}
+                        </a>
+                      ) : null}
+                    </div>
+                    <div className="admin-calendar-item-actions">
+                      <button type="button" onClick={() => openEditAppointment(appointment)}>
+                        Edit
+                      </button>
+                      <button
+                        className="admin-danger-text"
+                        type="button"
+                        onClick={() => handleDeleteAppointment(appointment.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section
+          className={`admin-panel admin-calendar-side${
+            mobilePanel === 'bookings' ? '' : ' admin-calendar-side-mobile-active'
+          }`}
+        >
+          <div className="admin-calendar-day-section">
+            <div className="admin-calendar-side-header">
+              <h2>
+                <CalendarDays size={18} />
+                {selectedDate.toLocaleDateString('en-AU', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                })}
+              </h2>
+              <button className="admin-secondary-button" type="button" onClick={() => openNewAppointment()}>
+                Add booking
+              </button>
+            </div>
+
+            {isLoading ? (
+              <p className="admin-muted">Loading...</p>
+            ) : selectedDayAppointments.length === 0 ? (
+              <p className="admin-muted">No bookings on this day.</p>
+            ) : (
+              <div className="admin-calendar-list">
+                {selectedDayAppointments.map((appointment) => (
+                  <article className="admin-calendar-item" key={appointment.id}>
+                    <div>
+                      <strong>{appointment.businessName || appointment.title}</strong>
+                      <p>
+                        {formatShortTime(appointment.startsAt)} ·{' '}
+                        {APPOINTMENT_TYPES.find((entry) => entry.value === appointment.appointmentType)
+                          ?.label || 'Booking'}
+                      </p>
+                      {appointment.contactName ? <p>{appointment.contactName}</p> : null}
+                      {appointment.contactPhone ? (
+                        <a className="admin-calendar-phone-link" href={formatPhoneHref(appointment.contactPhone)}>
+                          <Phone size={14} /> {appointment.contactPhone}
+                        </a>
+                      ) : null}
+                      {appointment.notes ? <p className="admin-muted">{appointment.notes}</p> : null}
+                    </div>
+                    <div className="admin-calendar-item-actions">
+                      <button type="button" onClick={() => openEditAppointment(appointment)}>
+                        Edit
+                      </button>
+                      <button
+                        className="admin-danger-text"
+                        type="button"
+                        onClick={() => handleDeleteAppointment(appointment.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="admin-calendar-followups-section">
           <div className="admin-calendar-side-header admin-calendar-followups-header">
             <h2>Follow-ups</h2>
             <button className="admin-secondary-button" type="button" onClick={() => openNewFollowUp()}>
@@ -527,10 +726,14 @@ export default function CalendarPage() {
                     <div>
                       <strong>{followUp.businessName || followUp.title}</strong>
                       <p>{formatTime(followUp.dueAt)}</p>
-                      {followUp.contactPhone ? <p>{followUp.contactPhone}</p> : null}
+                      {followUp.contactPhone ? (
+                        <a className="admin-calendar-phone-link" href={formatPhoneHref(followUp.contactPhone)}>
+                          {followUp.contactPhone}
+                        </a>
+                      ) : null}
                       {followUp.notes ? <p className="admin-muted">{followUp.notes}</p> : null}
                     </div>
-                    <div className="admin-table-actions">
+                    <div className="admin-calendar-item-actions">
                       <button type="button" onClick={() => handleCompleteFollowUp(followUp.id)}>
                         Done
                       </button>
@@ -542,7 +745,7 @@ export default function CalendarPage() {
                         type="button"
                         onClick={() => handleDeleteFollowUp(followUp.id)}
                       >
-                        <Trash2 size={14} />
+                        Delete
                       </button>
                     </div>
                   </article>
@@ -550,6 +753,7 @@ export default function CalendarPage() {
               })}
             </div>
           )}
+          </div>
         </section>
       </div>
 
